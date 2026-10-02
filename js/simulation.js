@@ -103,6 +103,11 @@
   chakraImage.decoding="async";
   chakraImage.addEventListener("load",()=>draw());
 
+  const krishnaHandImage=new Image();
+  krishnaHandImage.src="../krishna%20hand.jpg";
+  krishnaHandImage.decoding="async";
+  krishnaHandImage.addEventListener("load",()=>draw());
+
   const controls=document.getElementById("controlsMount");
   const metrics=document.getElementById("metrics");
   const title=document.getElementById("labTitle");
@@ -517,6 +522,15 @@
     const cy=h*.5;
     const r=clamp(Math.min(w,h)*.07*values.radius,35,Math.min(w,h)*.3);
     const angle=rotationAngle;
+
+    // Krishna's hand sits behind the Chakra so the asset remains the visible physics body.
+    if(krishnaHandImage.complete && krishnaHandImage.naturalWidth>0){
+      const handH=Math.min(h*.72,Math.max(250,r*3.4));
+      const handW=handH*(krishnaHandImage.naturalWidth/Math.max(1,krishnaHandImage.naturalHeight));
+      const handX=cx-handW*.50;
+      const handY=cy+handH*.08;
+      ctx.drawImage(krishnaHandImage,handX,handY,handW,handH);
+    }
 
     ctx.save();
     ctx.translate(cx,cy);
