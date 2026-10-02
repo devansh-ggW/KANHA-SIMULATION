@@ -185,17 +185,20 @@
   }
 
   function potSubmergedVolume(geom,centerDepth){
+    // centerDepth is measured downward from the water surface.
+    // The portion below the surface is determined only by the pot position.
     const topDepth=centerDepth-geom.height/2;
-    const submergedFromTop=clamp(-topDepth,0,geom.height);
-    if(submergedFromTop<=0) return 0;
+    const bottomDepth=centerDepth+geom.height/2;
+    const submergedHeight=clamp(bottomDepth,0,geom.height)-clamp(topDepth,0,geom.height);
+    if(submergedHeight<=0) return 0;
 
     const half=geom.height/2;
-    if(submergedFromTop<=half){
-      return frustumPartialVolume(geom.topRadius,geom.midRadius,half,submergedFromTop);
+    if(submergedHeight<=half){
+      return frustumPartialVolume(geom.topRadius,geom.midRadius,half,submergedHeight);
     }
 
     return frustumVolume(geom.topRadius,geom.midRadius,half)+
-      frustumPartialVolume(geom.midRadius,geom.bottomRadius,half,submergedFromTop-half);
+      frustumPartialVolume(geom.midRadius,geom.bottomRadius,half,submergedHeight-half);
   }
 
   function fluidState(){
@@ -657,8 +660,11 @@
     const waterBottom=bottom;
     const pixelsPerMeter=(waterBottom-level)/waterDepthMeters;
     const s=fluidState();
-    const bodyR=Math.max(20,Math.min(46,s.radius*pixelsPerMeter));
-    const bodyH=Math.max(42,Math.min(92,s.height*pixelsPerMeter));
+    // Make visual size respond clearly to the physical volume slider.
+    const volumeScale=Math.cbrt(values.volume/.02);
+    const bodyH=clamp(42*volumeScale,42,105);
+    const imageRatio=potImage.naturalWidth>0?potImage.naturalWidth/Math.max(1,potImage.naturalHeight):.9;
+    const bodyR=bodyH*imageRatio*.5;
     const travelWidth=Math.max(180,w*.70);
 
     ctx.fillStyle="rgba(34,184,173,.14)";
