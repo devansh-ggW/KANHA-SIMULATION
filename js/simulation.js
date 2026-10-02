@@ -9,7 +9,7 @@
     wave:{title:"Flute & Sound",formula:"v = fλ",note:"Frequency and amplitude shape the wave; the wave speed stays fixed.",defaults:{frequency:440,amplitude:1,speed:343},controls:[["frequency","Frequency",100,1000,1,"Hz"],["amplitude","Amplitude",.2,2,.1,"×"],["speed","Wave speed",100,500,1,"m/s"]]},
     rotation:{title:"Sudarshan Chakra",formula:"aᶜ = v² / r",note:"Rotate the disc and observe tangential speed and centripetal acceleration.",defaults:{radius:2,omega:5,mass:2},controls:[["radius","Radius",.5,4,.1,"m"],["omega","Angular speed",.5,12,.1,"rad/s"],["mass","Mass",.5,10,.1,"kg"]]},
     balance:{title:"Govardhan Balance",formula:"τ = rF sinφ",note:"Move the load and effort positions along the beam, then change force to see how torque and balance respond.",defaults:{mass:80,loadArm:2.2,effortArm:3,effort:650},controls:[["mass","Load mass",10,200,1,"kg"],["loadArm","Load position",.5,4,.1,"m from pivot"],["effortArm","Effort position",.5,5,.1,"m from pivot"],["effort","Effort force",50,1200,10,"N"]]},
-    fluid:{title:"Yamuna Pressure",formula:"Fᵦ = ρgVₛᵤᵦ",note:"Change body mass, volume and water density to make the object float, sink or settle at an equilibrium depth. River flow controls horizontal drift.",defaults:{depth:4,density:1000,volume:.08,mass:60,flow:1.4},controls:[["depth","Water depth",.2,10,.1,"m"],["density","Water density",700,1200,1,"kg/m³"],["volume","Body volume",.02,.2,.01,"m³"],["mass","Body mass",20,160,1,"kg"],["flow","River flow",0,4,.1,"m/s"]]},
+    fluid:{title:"Yamuna Pressure",formula:"Fᵦ = ρgVₛᵤᵦ",note:"Change body mass, volume and water density to make the object float, sink or settle at an equilibrium depth. River flow controls horizontal drift.",defaults:{depth:4,density:1000,volume:.08,mass:60,flow:1.4},controls:[["depth","Object depth",.2,10,.1,"m"],["density","Water density",700,1200,1,"kg/m³"],["volume","Body volume",.02,.2,.01,"m³"],["mass","Body mass",20,160,1,"kg"],["flow","River flow",0,4,.1,"m/s"]]},
     orbit:{title:"Kanha Sky",formula:"v = √(GM / r)",note:"Play the stable orbit model. Change radius or speed to explore the relationship.",defaults:{radius:3,mass:120,velocity:6},controls:[["radius","Orbit radius",1,6,.1,"AU"],["mass","Central mass",30,250,1,"M"],["velocity","Orbital speed",2,12,.1,"km/s"]]}
   }[mode];
   let values={...config.defaults},running=false,raf=0,last=0,acc=0,time=0,dpr=1,w=0,h=0;
@@ -31,7 +31,7 @@
       const g=9.81,load=values.mass*g,required=load*values.loadArm/Math.max(.1,values.effortArm),net=values.effort*values.effortArm*Math.cos(balanceAngle)-load*values.loadArm*Math.cos(balanceAngle);
       m.push(["Load force",load.toFixed(1)+" N"],["Effort force",values.effort.toFixed(0)+" N"],["Required effort",required.toFixed(1)+" N"],["Net torque",net.toFixed(1)+" N·m"]);
     }else if(mode==="fluid"){
-      const p=values.density*9.81*values.depth,objectDensity=values.mass/Math.max(.0001,values.volume),bodyRadius=Math.cbrt((3*values.volume)/(4*Math.PI)),submerged=Math.max(0,Math.min(1,(fluidDepth+bodyRadius)/(2*bodyRadius))),b=values.density*9.81*values.volume*submerged,wgt=values.mass*9.81,net=b-wgt,status=objectDensity<values.density-1?"Floats":objectDensity>values.density+1?"Sinks":"Neutral"; m.push(["Pressure",Math.round(p)+" Pa"],["Object density",objectDensity.toFixed(0)+" kg/m³"],["Buoyant force",b.toFixed(2)+" N"],["Body weight",wgt.toFixed(2)+" N"],["Vertical force",net.toFixed(2)+" N"],["State",status],["Body depth",(Math.max(0,fluidDepth)).toFixed(2)+" m"],["River flow",values.flow.toFixed(1)+" m/s"]);
+      const p=values.density*9.81*Math.max(0,fluidDepth),objectDensity=values.mass/Math.max(.0001,values.volume),bodyRadius=Math.cbrt((3*values.volume)/(4*Math.PI)),submerged=Math.max(0,Math.min(1,(fluidDepth+bodyRadius)/(2*bodyRadius))),b=values.density*9.81*values.volume*submerged,wgt=values.mass*9.81,net=b-wgt,status=objectDensity<values.density-1?"Floats":objectDensity>values.density+1?"Sinks":"Neutral"; m.push(["Pressure",Math.round(p)+" Pa"],["Object density",objectDensity.toFixed(0)+" kg/m³"],["Buoyant force",b.toFixed(2)+" N"],["Body weight",wgt.toFixed(2)+" N"],["Vertical force",net.toFixed(2)+" N"],["State",status],["Body depth",(Math.max(0,fluidDepth)).toFixed(2)+" m"],["River flow",values.flow.toFixed(1)+" m/s"]);
     }else{
       const ideal=Math.sqrt(values.mass*20/values.radius),ratio=values.velocity/ideal;m.push(["Ideal speed",ideal.toFixed(2)+" km/s"],["Current speed",values.velocity.toFixed(2)+" km/s"],["Speed ratio",ratio.toFixed(2)],["Radius",values.radius.toFixed(1)+" AU"]);
     }
@@ -46,7 +46,7 @@
       g.innerHTML='<div class="control-row"><label for="'+id+'">'+label+'</label><span class="control-value" id="value-'+key+'"></span></div><input id="'+id+'" type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+values[key]+'">';
       controls.appendChild(g);
       const input=g.querySelector("input"),out=g.querySelector(".control-value");
-      const sync=()=>{values[key]=Number(input.value);out.textContent=input.value+" "+unit;metricsHtml();draw();};
+      const sync=()=>{values[key]=Number(input.value);if(mode==="fluid"&&key==="depth"){fluidDepth=Math.min(Math.max(.05,values.depth),Math.max(.1,values.depth));fluidVelocity=0;}out.textContent=input.value+" "+unit;metricsHtml();draw();};
       input.addEventListener("input",sync);sync();
     });
   }
@@ -180,7 +180,7 @@
 
     ctx.fillStyle="#8ea2b8";ctx.font="11px system-ui";
     ctx.fillText("surface",16,level-10);
-    ctx.fillText(values.depth.toFixed(1)+" m water depth",16,level+27);
+    ctx.fillText(values.depth.toFixed(1)+" m target depth",16,level+27);
     ctx.fillText((fluidDepth<0?"above water":submerged>.98?"fully submerged":submerged<.02?"out of water":Math.round(submerged*100)+"% submerged"),16,level+45);
     ctx.fillText(values.flow>0.05?"river current →":"no current",Math.max(16,w*.62),waterBottom-22);
   }
@@ -235,7 +235,7 @@
       acc-=1/60;
     }draw();raf=requestAnimationFrame(loop)}
   play.addEventListener("click",()=>setRunning(!running));
-  document.getElementById("resetBtn").addEventListener("click",()=>{setRunning(false);values={...config.defaults};phase=0;time=0;balanceAngle=0.05;balanceVelocity=0;fluidX=0;fluidDepth=.35;fluidVelocity=0;buildControls();metricsHtml();draw()});
+  document.getElementById("resetBtn").addEventListener("click",()=>{setRunning(false);values={...config.defaults};phase=0;time=0;balanceAngle=0.05;balanceVelocity=0;fluidX=0;fluidDepth=Math.min(.35,Math.max(.05,config.defaults.depth));fluidVelocity=0;buildControls();metricsHtml();draw()});
   document.addEventListener("visibilitychange",()=>{if(document.hidden)setRunning(false)});
   window.addEventListener("resize",resize,{passive:true});
   buildControls();metricsHtml();resize();
