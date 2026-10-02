@@ -57,12 +57,12 @@
       title:"Yamuna Pressure",
       formula:"Fᵦ = ρgVₛᵤᵦ",
       note:"A spherical body moves under gravity and buoyancy. Volume stays fixed; depth changes position and submerged volume, while flow creates horizontal drag.",
-      defaults:{depth:4,density:1000,volume:.08,mass:60,flow:1.4},
+      defaults:{depth:4,density:1000,volume:.08,mass:100,flow:1.4},
       controls:[
         ["depth","Object depth",.2,9,.1,"m"],
         ["density","Water density",700,1200,1,"kg/m³"],
-        ["volume","Body volume",.02,.2,.01,"m³"],
-        ["mass","Body mass",20,160,1,"kg"],
+        ["volume","Pot volume",.02,.2,.01,"m³"],
+        ["mass","Pot mass",20,240,1,"kg"],
         ["flow","River flow",0,4,.1,"m/s"]
       ]
     },
@@ -133,7 +133,7 @@
   }
 
   function resetFluid(){
-    fluidDepth=clamp(values.depth,.05,9.0);
+    fluidDepth=clamp(values.depth,.2,9.0);
     fluidVelocity=0;
     fluidX=0;
     fluidVelocityX=0;
@@ -156,24 +156,52 @@
     orbitTrail.push([orbitX,orbitY]);
   }
 
-  function sphereSubmergedVolume(radius,centerDepth){
-    const h=radius+centerDepth;
-    if(h<=0) return 0;
-    if(h>=2*radius) return (4/3)*Math.PI*radius**3;
-    return Math.PI*h*h*(radius-h/3);
+  function potGeometry(volume){
+    const radius=Math.cbrt(volume/(2.4*Math.PI));
+    const height=2.4*radius;
+    return {radius,height};
+  }
+
+  function potSubmergedVolume(geom,centerDepth){
+    const topDepth=centerDepth-geom.height/2;
+    const bottomDepth=centerDepth+geom.height/2;
+    const submergedHeight=clamp(bottomDepth,0,geom.height)-clamp(topDepth,0,geom.height);
+    if(submergedHeight<=0) return 0;
+    return Math.PI*geom.radius*geom.radius*submergedHeight;
   }
 
   function fluidState(){
-    const radius=Math.cbrt((3*values.volume)/(4*Math.PI));
-    const submergedVolume=sphereSubmergedVolume(radius,fluidDepth);
+    const geom=potGeometry(values.volume);
+    const submergedVolume=potSubmergedVolume(geom,fluidDepth);
     const buoyantForce=values.density*G*submergedVolume;
     const weightForce=values.mass*G;
     const netVertical=buoyantForce-weightForce;
     const objectDensity=values.mass/Math.max(.0001,values.volume);
     const submergedFraction=clamp(submergedVolume/values.volume,0,1);
-    const equilibriumFraction=clamp(values.mass/(values.density*values.volume),0,1);
-    const equilibriumSubmergedVolume=values.mass/Math.max(1,values.density);
-    return {radius,submergedVolume,buoyantForce,weightForce,netVertical,objectDensity,submergedFraction,equilibriumFraction,equilibriumSubmergedVolume};
+    const speed=fluidVelocity;
+
+    let status="Neutral";
+    if(submergedFraction<=0.001){
+      status="Out of water";
+    }else if(Math.abs(netVertical)<0.15 && Math.abs(speed)<0.03){
+      status="Floating";
+    }else if(netVertical>0){
+      status="Rising";
+    }else{
+      status="Sinking";
+    }
+
+    return {
+      radius:geom.radius,
+      height:geom.height,
+      submergedVolume,
+      buoyantForce,
+      weightForce,
+      netVertical,
+      objectDensity,
+      submergedFraction,
+      status
+    };
   }
 
   function balanceState(){
@@ -247,16 +275,15 @@
     }else if(mode==="fluid"){
       const s=fluidState();
       const pressure=values.density*G*Math.max(0,fluidDepth);
-      const status=s.objectDensity<values.density-1?"Floats":s.objectDensity>values.density+1?"Sinks":"Neutral";
       const submerged=(s.submergedFraction*100).toFixed(0);
       m.push(
         ["Pressure",Math.round(pressure)+" Pa"],
         ["Object density",s.objectDensity.toFixed(0)+" kg/m³"],
         ["Buoyant force",s.buoyantForce.toFixed(2)+" N"],
-        ["Body weight",s.weightForce?.toFixed(2)+" N"],
+        ["Body weight",s.weightForce.toFixed(2)+" N"],
         ["Vertical force",s.netVertical.toFixed(2)+" N"],
         ["Submerged",submerged+" %"],
-        ["State",status],
+        ["State",s.status],
         ["Depth",Math.max(0,fluidDepth).toFixed(2)+" m"],
         ["River flow",values.flow.toFixed(1)+" m/s"]
       );
@@ -292,7 +319,7 @@
         values[key]=Number(input.value);
 
         if(mode==="fluid" && key==="depth"){
-          fluidDepth=clamp(values.depth,.05,9);
+          fluidDepth=clamp(values.depth,.2,9);
           fluidVelocity=0;
         }
 
@@ -602,7 +629,8 @@
     const waterBottom=bottom;
     const pixelsPerMeter=(waterBottom-level)/waterDepthMeters;
     const s=fluidState();
-    const bodyR=Math.max(14,Math.min(42,s.radius*pixelsPerMeter));
+    const bodyR=Math.max(20,Math.min(46,s.radius*pixelsPerMeter));
+    const bodyH=Math.max(42,Math.min(92,s.height*pixelsPerMeter));
     const travelWidth=Math.max(180,w*.70);
 
     ctx.fillStyle="rgba(34,184,173,.14)";
@@ -631,34 +659,67 @@
       }
     }
 
-    const horizontalSpeed=values.flow;
-    const wrappedX=((fluidX*horizontalSpeed*35)%travelWidth+travelWidth)%travelWidth;
+    const wrappedX=((fluidX*35)%travelWidth+travelWidth)%travelWidth;
     const bodyX=w*.16+wrappedX;
     const bodyY=level+fluidDepth*pixelsPerMeter;
 
-    ctx.fillStyle="#d4ad63";
-    ctx.beginPath();
-    ctx.arc(bodyX,bodyY,bodyR,0,TAU);
-    ctx.fill();
+    // Krishna-style makhan matki: rounded clay body, narrow neck, butter at the rim.
+    const topY=bodyY-bodyH/2;
+    const shoulderY=topY+bodyH*.24;
+    const bottomY=bodyY+bodyH/2;
+    const neckR=bodyR*.58;
+    const bodyRFull=bodyR;
 
-    const waterlineY=level;
+    ctx.fillStyle="#b8784f";
+    ctx.strokeStyle="rgba(245,226,192,.55)";
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(bodyX-neckR,topY);
+    ctx.quadraticCurveTo(bodyX-bodyRFull,shoulderY,bodyX-bodyRFull*.92,bottomY-bodyH*.15);
+    ctx.quadraticCurveTo(bodyX-bodyRFull*.82,bottomY,bodyX,bottomY);
+    ctx.quadraticCurveTo(bodyX+bodyRFull*.82,bottomY,bodyX+bodyRFull*.92,bottomY-bodyH*.15);
+    ctx.quadraticCurveTo(bodyX+bodyRFull,shoulderY,bodyX+neckR,topY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle="rgba(212,173,99,.9)";
+    ctx.lineWidth=4;
+    ctx.beginPath();
+    ctx.moveTo(bodyX-bodyR*.72,topY+bodyH*.37);
+    ctx.quadraticCurveTo(bodyX,topY+bodyH*.47,bodyX+bodyR*.72,topY+bodyH*.37);
+    ctx.stroke();
+
+    ctx.fillStyle="#25a8a0";
+    ctx.fillRect(bodyX-bodyR*.48,topY+bodyH*.56,bodyR*.96,bodyH*.08);
+
+    ctx.fillStyle="#f3efe3";
+    for(let i=-2;i<=2;i++){
+      const bx=bodyX+i*bodyR*.20;
+      const by=topY+bodyH*.03-Math.abs(i)*2;
+      ctx.beginPath();
+      ctx.arc(bx,by,bodyR*.17,0,TAU);
+      ctx.fill();
+    }
+
+    // Waterline crosses the actual pot body and visually shows submersion.
     ctx.save();
     ctx.beginPath();
-    ctx.arc(bodyX,bodyY,bodyR,0,TAU);
+    ctx.rect(0,level,w,waterBottom-level);
     ctx.clip();
     ctx.strokeStyle="rgba(85,193,186,.9)";
     ctx.lineWidth=2;
     ctx.beginPath();
-    ctx.moveTo(bodyX-bodyR,waterlineY);
-    ctx.lineTo(bodyX+bodyR,waterlineY);
+    ctx.moveTo(bodyX-bodyR*1.05,level);
+    ctx.lineTo(bodyX+bodyR*1.05,level);
     ctx.stroke();
     ctx.restore();
 
     const buoyArrow=clamp(25+s.buoyantForce/12,35,95);
     const weightArrow=clamp(25+s.weightForce/12,35,95);
 
-    if(s.buoyantForce>0.01) arrow(bodyX,bodyY-bodyR,bodyX,bodyY-bodyR-buoyArrow,"buoyancy");
-    arrow(bodyX,bodyY+bodyR,bodyX,bodyY+bodyR+weightArrow,"weight");
+    if(s.buoyantForce>0.01) arrow(bodyX,bodyY-bodyH/2,bodyX,bodyY-bodyH/2-buoyArrow,"buoyancy");
+    arrow(bodyX,bodyY+bodyH/2,bodyX,bodyY+bodyH/2+weightArrow,"weight");
 
     if(values.flow>.05){
       arrow(bodyX-bodyR-62,bodyY-42,bodyX-bodyR-12,bodyY-42,"current");
@@ -669,6 +730,7 @@
     ctx.fillText("surface",16,level-10);
     ctx.fillText("10 m water column",16,level+27);
     ctx.fillText((s.submergedFraction*100).toFixed(0)+"% submerged",16,level+45);
+    ctx.fillText(s.status,16,level+63);
     ctx.fillText(values.flow>.05?"current →":"no current",Math.max(16,w*.62),waterBottom-22);
   }
 
@@ -777,8 +839,8 @@
     fluidVelocity*=Math.pow(.995,dt*60);
     fluidDepth+=fluidVelocity*dt;
 
-    const topLimit=-s.radius;
-    const bottomLimit=waterDepthLimit()-s.radius;
+    const topLimit=-s.height/2;
+    const bottomLimit=waterDepthLimit()-s.height/2;
 
     if(fluidDepth<topLimit){
       fluidDepth=topLimit;
