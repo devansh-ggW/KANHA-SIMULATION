@@ -85,35 +85,72 @@
     window.setTimeout(() => { modal.hidden = true; }, 150);
   };
 
+  let paddleReady = false;
+  let paddleInitError = null;
+
+  const initializePaddle = async () => {
+    if (paddleReady) return true;
+    try {
+      await loadPaddle();
+      if (!PADDLE_CLIENT_SIDE_TOKEN || PADDLE_CLIENT_SIDE_TOKEN.includes("PASTE_")) {
+        paddleInitError = "Paddle client-side token is missing.";
+        return false;
+      }
+
+      window.Paddle.Initialize({
+        token: PADDLE_CLIENT_SIDE_TOKEN,
+        checkout: {
+          settings: {
+            displayMode: "overlay",
+            theme: "light",
+            locale: "en"
+          }
+        },
+        eventCallback: (event) => {
+          if (event?.name === "checkout.error") {
+            console.error("Paddle checkout.error:", event);
+          }
+        }
+      });
+
+      paddleReady = true;
+      return true;
+    } catch (error) {
+      paddleInitError = error;
+      console.error("Paddle initialization error:", error);
+      return false;
+    }
+  };
+
   const openCheckout = async (amount) => {
     const priceId = prices[amount];
     if (!priceId) return;
 
+    const ready = await initializePaddle();
+    if (!ready) {
+      status.textContent = "Paddle could not initialize. Check the checkout settings in Paddle.";
+      return;
+    }
+
     try {
-      await loadPaddle();
-      if (!PADDLE_CLIENT_SIDE_TOKEN || PADDLE_CLIENT_SIDE_TOKEN.includes("PASTE_")) {
-        status.textContent = "Paddle checkout is not configured yet.";
-        return;
-      }
-
-      if (!window.Paddle.__kanhaInitialized) {
-        window.Paddle.Initialize({
-          token: PADDLE_CLIENT_SIDE_TOKEN,
-          checkout: { settings: { displayMode: "overlay", theme: "light", locale: "en" } }
-        });
-        window.Paddle.__kanhaInitialized = true;
-      }
-
       window.Paddle.Checkout.open({
         items: [{ priceId, quantity: 1 }],
-        settings: { displayMode: "overlay", theme: "light", locale: "en" }
+        settings: {
+          displayMode: "overlay",
+          theme: "light",
+          locale: "en"
+        }
       });
       closeModal();
     } catch (error) {
-      console.error("Paddle checkout error:", error);
-      status.textContent = "Checkout could not be opened. Please try again.";
+      console.error("Paddle checkout open error:", error);
+      status.textContent = paddleInitError
+        ? "Paddle could not initialize. Please check the Paddle checkout settings."
+        : "Checkout could not be opened. Please try again.";
     }
   };
+
+  initializePaddle().catch(() => {});
 
   navButtons.forEach((button) => button.addEventListener("click", openModal));
   closeButton.addEventListener("click", closeModal);
