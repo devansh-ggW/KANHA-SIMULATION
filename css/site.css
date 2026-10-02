@@ -98,31 +98,28 @@ input[type=range]{width:100%;accent-color:#5ca8ff}
 .top-actions{display:flex;gap:10px;align-items:center}
 .status{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
 
-/* Paddle support */
-.support-section{margin-top:56px}
-.support-frame{display:grid;grid-template-columns:1fr 430px;gap:28px;border:1px solid rgba(212,173,99,.18);background:
-radial-gradient(700px 260px at 18% 0%,rgba(37,184,173,.08),transparent 65%),
-linear-gradient(145deg,rgba(16,36,56,.82),rgba(7,17,29,.98));padding:28px}
-.support-copy{padding:10px 4px}
-.support-copy h2{font-size:46px;line-height:.95;letter-spacing:-.05em;margin:14px 0}
-.support-copy p{max-width:600px;color:#aebed0;font-size:13px;line-height:1.7;margin:0}
-.support-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
-.support-meta span{border:1px solid var(--line);padding:7px 9px;color:#91a7bd;font-size:9px;letter-spacing:.12em;text-transform:uppercase}
-.support-panel{border:1px solid var(--line);background:rgba(5,13,22,.52);padding:20px}
-.support-label{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:11px}
-.support-options{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.support-amount{border:1px solid var(--line);background:rgba(255,255,255,.025);color:var(--text);padding:13px 8px;font-size:12px;font-weight:700;letter-spacing:.04em;transition:border-color .14s ease,background .14s ease,transform .14s ease}
-.support-amount:hover{border-color:rgba(212,173,99,.5);background:rgba(212,173,99,.07);transform:translateY(-1px)}
-.support-amount.is-selected{border-color:var(--gold);background:rgba(212,173,99,.1);color:#f7e7bd}
-.support-selected{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);margin-top:14px;padding-top:14px}
-.support-selected span{color:var(--muted);font-size:10px;letter-spacing:.11em;text-transform:uppercase}
-.support-selected strong{font-size:18px;font-weight:600;color:var(--cream)}
-.support-pay{width:100%;margin-top:14px;border:1px solid #e7f3ff;background:#e7f3ff;color:#08111c;padding:13px 16px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;font-weight:800}
-.support-pay:hover{background:#fff}
-.support-pay span{margin-left:8px}
-.support-status{min-height:18px;margin:10px 0 0;color:#c2ceda;font-size:10px;line-height:1.5}
-@media(max-width:900px){.support-frame{grid-template-columns:1fr}}
-@media(max-width:680px){.support-frame{padding:20px}.support-copy h2{font-size:38px}.support-options{grid-template-columns:repeat(2,1fr)}}
+
+
+/* Paddle donations */
+.donate-btn{border-color:rgba(212,173,99,.3);color:#e8d29f}
+.donate-btn:hover{border-color:var(--gold);background:rgba(212,173,99,.09);color:#f7e7bd}
+.donate-modal-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:rgba(4,10,17,.54);backdrop-filter:blur(4px);opacity:0;transition:opacity .15s ease}
+.donate-modal-backdrop[hidden]{display:none}
+.donate-modal-backdrop.is-open{opacity:1}
+.donate-modal{width:min(460px,92vw);border:1px solid rgba(18,30,43,.14);background:#fff;color:#132131;box-shadow:0 24px 70px rgba(0,0,0,.28);padding:28px;position:relative;transform:translateY(8px) scale(.985);transition:transform .15s ease}
+.donate-modal-backdrop.is-open .donate-modal{transform:translateY(0) scale(1)}
+.donate-close{position:absolute;top:10px;right:12px;border:0;background:transparent;color:#64748b;font-size:25px;line-height:1;padding:3px 6px}
+.donate-close:hover{color:#172033}
+.donate-eyebrow{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#8b6a22;font-weight:800}
+.donate-modal h2{font-size:36px;line-height:1;letter-spacing:-.045em;margin:11px 34px 10px 0;color:#102033}
+.donate-modal p{margin:0;color:#5b6a7b;font-size:12px;line-height:1.65}
+.donate-options{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:20px}
+.donate-options button{border:1px solid #d8dee6;background:#f7f9fb;color:#182536;padding:14px 8px;font-size:12px;font-weight:750;transition:border-color .14s ease,background .14s ease,transform .14s ease}
+.donate-options button:hover{border-color:#b9984e;background:#fffdf7;transform:translateY(-1px)}
+.donate-note{margin-top:16px;padding-top:14px;border-top:1px solid #e4e8ed;color:#758395;font-size:9px;letter-spacing:.1em;text-transform:uppercase}
+.donate-status{min-height:16px;margin-top:10px!important;color:#9a3d2f!important;font-size:10px!important}
+.donate-modal-open{overflow:hidden}
+@media(max-width:680px){.nav-actions{flex-wrap:wrap}.donate-options{grid-template-columns:repeat(2,1fr)}.donate-modal{padding:22px}.donate-modal h2{font-size:31px}}
 
 @media(max-width:1050px){
   .hero{grid-template-columns:1fr}.hero-stage{min-height:430px}
