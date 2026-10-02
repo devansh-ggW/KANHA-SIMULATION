@@ -131,6 +131,12 @@ input[type=range]{width:100%;accent-color:#5ca8ff}
 .donate-modal-open{overflow:hidden}
 
 
+@media(max-width:680px){
+  .signature-starfield-canvas{opacity:.58}
+  .signature-starfield-interactive{display:none}
+  .donate-modal-backdrop{backdrop-filter:none}
+}
+
 @media(max-width:680px){.nav-actions{flex-wrap:wrap}.donate-options{grid-template-columns:repeat(2,1fr)}.donate-modal{padding:22px}.donate-modal h2{font-size:31px}}
 
 @media(max-width:1050px){
