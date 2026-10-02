@@ -525,10 +525,10 @@
 
     // Krishna's hand sits behind the Chakra so the asset remains the visible physics body.
     if(krishnaHandImage.complete && krishnaHandImage.naturalWidth>0){
-      const handH=Math.min(h*.72,Math.max(250,r*3.4));
+      const handH=Math.min(h*.34,Math.max(120,r*1.65));
       const handW=handH*(krishnaHandImage.naturalWidth/Math.max(1,krishnaHandImage.naturalHeight));
-      const handX=cx-handW*.50;
-      const handY=cy+handH*.08;
+      const handX=cx-handW*.34;
+      const handY=cy+handH*.18;
       ctx.drawImage(krishnaHandImage,handX,handY,handW,handH);
     }
 
