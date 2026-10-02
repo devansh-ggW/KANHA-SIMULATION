@@ -98,6 +98,11 @@
   potImage.decoding="async";
   potImage.addEventListener("load",()=>draw());
 
+  const chakraImage=new Image();
+  chakraImage.src="../sudarshan%20chakra.svg";
+  chakraImage.decoding="async";
+  chakraImage.addEventListener("load",()=>draw());
+
   const controls=document.getElementById("controlsMount");
   const metrics=document.getElementById("metrics");
   const title=document.getElementById("labTitle");
@@ -515,31 +520,28 @@
 
     ctx.save();
     ctx.translate(cx,cy);
-    ctx.scale(1,.34);
     ctx.rotate(angle);
 
-    ctx.fillStyle="rgba(212,173,99,.08)";
-    ctx.strokeStyle="rgba(212,173,99,.28)";
-    ctx.lineWidth=3;
-    ctx.beginPath();
-    ctx.arc(0,0,r,0,TAU);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.strokeStyle="rgba(85,193,186,.82)";
-    ctx.lineWidth=5;
-    for(let i=0;i<12;i++){
-      ctx.rotate(Math.PI/6);
+    // Use the uploaded SVG as the actual Chakra body.
+    if(chakraImage.complete && chakraImage.naturalWidth>0){
+      const size=r*2.05;
+      ctx.drawImage(chakraImage,-size/2,-size/2,size,size);
+    }else{
+      ctx.fillStyle="rgba(212,173,99,.12)";
+      ctx.strokeStyle="rgba(212,173,99,.45)";
+      ctx.lineWidth=3;
       ctx.beginPath();
-      ctx.moveTo(0,0);
-      ctx.lineTo(r*.92,0);
+      ctx.arc(0,0,r,0,TAU);
       ctx.stroke();
+      ctx.strokeStyle="#55c1ba";
+      for(let i=0;i<12;i++){
+        ctx.rotate(Math.PI/6);
+        ctx.beginPath();
+        ctx.moveTo(0,0);
+        ctx.lineTo(r*.92,0);
+        ctx.stroke();
+      }
     }
-
-    ctx.fillStyle="#d4ad63";
-    ctx.beginPath();
-    ctx.arc(0,0,r*.19,0,TAU);
-    ctx.fill();
     ctx.restore();
 
     const v=values.radius*values.omega;
