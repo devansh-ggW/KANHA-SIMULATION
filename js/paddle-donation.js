@@ -55,6 +55,13 @@
       <div class="donate-eyebrow">Support the project</div>
       <h2 id="donate-title">Donate to KANHA SIMULATION</h2>
       <p>Choose a one-time amount to support the free physics labs.</p>
+      <div class="donate-art-card">
+        <img src="/assets/kanha-donation-card.svg" alt="" aria-hidden="true">
+        <div class="donate-art-overlay">
+          <span id="donate-motif">BANSURI</span>
+          <strong id="donate-card-amount">₹300</strong>
+        </div>
+      </div>
       <div class="donate-options" role="group" aria-label="Donation amount">
         <button type="button" data-donate-amount="50">₹50</button>
         <button type="button" data-donate-amount="100">₹100</button>
@@ -63,6 +70,7 @@
         <button type="button" data-donate-amount="700">₹700</button>
         <button type="button" data-donate-amount="1000">₹1,000</button>
       </div>
+      <button class="donate-continue" id="donate-continue" type="button">Continue to payment <span>→</span></button>
       <div class="donate-note">Secure checkout powered by Paddle · INR</div>
       <p class="donate-status" id="donate-status" role="status" aria-live="polite"></p>
     </div>
@@ -71,11 +79,37 @@
 
   const closeButton = modal.querySelector(".donate-close");
   const status = modal.querySelector(".donate-status");
+  const continueButton = modal.querySelector("#donate-continue");
+  const cardAmount = modal.querySelector("#donate-card-amount");
+  const motif = modal.querySelector("#donate-motif");
+  const motifs = {
+    50: "BANSURI",
+    100: "MOR PANKH",
+    300: "KANHA",
+    500: "VRINDAVAN",
+    700: "GOVARDHAN",
+    1000: "KANHA SIMULATION"
+  };
+
+  let selectedAmount = 300;
+
+  const selectAmount = (amount) => {
+    if (!prices[amount]) return;
+    selectedAmount = amount;
+    modal.querySelectorAll("[data-donate-amount]").forEach((button) => {
+      const active = Number(button.dataset.donateAmount) === amount;
+      button.classList.toggle("is-selected", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    cardAmount.textContent = formatAmount(amount);
+    motif.textContent = motifs[amount] || "KANHA";
+    status.textContent = "";
+  };
 
   const openModal = () => {
     modal.hidden = false;
     document.body.classList.add("donate-modal-open");
-    status.textContent = "";
+    selectAmount(300);
     requestAnimationFrame(() => modal.classList.add("is-open"));
   };
 
@@ -135,6 +169,10 @@
     try {
       window.Paddle.Checkout.open({
         items: [{ priceId, quantity: 1 }],
+        customData: {
+          support_amount_inr: selectedAmount,
+          design_motif: motifs[selectedAmount] || "KANHA"
+        },
         settings: {
           displayMode: "overlay",
           theme: "light",
@@ -153,6 +191,7 @@
   initializePaddle().catch(() => {});
 
   navButtons.forEach((button) => button.addEventListener("click", openModal));
+  continueButton.addEventListener("click", () => openCheckout(selectedAmount));
   closeButton.addEventListener("click", closeModal);
   modal.addEventListener("click", (event) => {
     if (event.target === modal) closeModal();
@@ -161,6 +200,7 @@
     if (event.key === "Escape" && !modal.hidden) closeModal();
   });
   modal.querySelectorAll("[data-donate-amount]").forEach((button) => {
-    button.addEventListener("click", () => openCheckout(Number(button.dataset.donateAmount)));
+    button.setAttribute("aria-pressed", "false");
+    button.addEventListener("click", () => selectAmount(Number(button.dataset.donateAmount)));
   });
 })();
