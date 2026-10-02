@@ -1260,3 +1260,11 @@
   metricsHtml();
   resize();
 })();
+/* KANHA site-wide donation loader */
+(() => {
+  if (document.querySelector('script[data-kanha-donation-loader]')) return;
+  const script = document.createElement("script");
+  script.src = "../js/paddle-donation.js";
+  script.dataset.kanhaDonationLoader = "true";
+  document.body.appendChild(script);
+})();
