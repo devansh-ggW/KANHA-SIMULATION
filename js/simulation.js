@@ -103,10 +103,6 @@
   chakraImage.decoding="async";
   chakraImage.addEventListener("load",()=>draw());
 
-  const krishnaHandImage=new Image();
-  krishnaHandImage.src="../krishna%20hand.jpg";
-  krishnaHandImage.decoding="async";
-  krishnaHandImage.addEventListener("load",()=>draw());
 
   const controls=document.getElementById("controlsMount");
   const metrics=document.getElementById("metrics");
@@ -522,19 +518,11 @@
     const cy=h*.5;
     const r=clamp(Math.min(w,h)*.07*values.radius,35,Math.min(w,h)*.3);
     const angle=rotationAngle;
-
-    // Krishna's hand sits behind the Chakra so the asset remains the visible physics body.
-    if(krishnaHandImage.complete && krishnaHandImage.naturalWidth>0){
-      const handH=Math.min(h*.34,Math.max(120,r*1.65));
-      const handW=handH*(krishnaHandImage.naturalWidth/Math.max(1,krishnaHandImage.naturalHeight));
-      const handX=cx-handW*.34;
-      const handY=cy+handH*.18;
-      ctx.drawImage(krishnaHandImage,handX,handY,handW,handH);
-    }
+    const baseTilt=-Math.PI/7; // Match the earlier slanted static presentation.
 
     ctx.save();
     ctx.translate(cx,cy);
-    ctx.rotate(angle);
+    ctx.rotate(baseTilt+angle);
 
     // Use the uploaded SVG as the actual Chakra body.
     if(chakraImage.complete && chakraImage.naturalWidth>0){
@@ -559,9 +547,10 @@
     ctx.restore();
 
     const v=values.radius*values.omega;
-    const tangentX=cx+Math.cos(angle+Math.PI/2)*Math.min(95,18+v*3);
-    const tangentY=cy+Math.sin(angle+Math.PI/2)*Math.min(55,12+v*2);
-    arrow(cx+r*.45,cy-r*.12,tangentX,tangentY,"tangential");
+    const tangentAngle=baseTilt+angle+Math.PI/2;
+    const tangentX=cx+Math.cos(tangentAngle)*Math.min(95,18+v*3);
+    const tangentY=cy+Math.sin(tangentAngle)*Math.min(55,12+v*2);
+    arrow(cx+r*.45*Math.cos(baseTilt+angle),cy+r*.45*Math.sin(baseTilt+angle),tangentX,tangentY,"tangential");
   }
 
   function drawBalance(){
