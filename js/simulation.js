@@ -55,8 +55,8 @@
     },
     fluid:{
       title:"Yamuna Pressure",
-      formula:"Fᵦ = ρgVₛᵤᵦ",
-      note:"A solid makhan pot moves under gravity and buoyancy. Pot volume stays fixed; depth changes position and the submerged part of that same pot determines buoyant force.",
+      formula:"F = mg",
+      note:"A makhan pot sinks under gravity through a water column. Pot volume controls its size, object depth sets its starting position, and river flow controls horizontal motion.",
       defaults:{depth:4,density:1000,volume:.08,mass:100,flow:1.4},
       controls:[
         ["depth","Object depth",.2,9,.1,"m"],
@@ -203,34 +203,22 @@
 
   function fluidState(){
     const geom=potGeometry(values.volume);
-    const submergedVolume=potSubmergedVolume(geom,fluidDepth);
-    const buoyantForce=values.density*G*submergedVolume;
     const weightForce=values.mass*G;
-    const netVertical=buoyantForce-weightForce;
+    const netVertical=-weightForce;
     const objectDensity=values.mass/Math.max(.0001,values.volume);
-    const submergedFraction=clamp(submergedVolume/values.volume,0,1);
-    const speed=fluidVelocity;
-
-    let status="Neutral";
-    if(submergedFraction<=0.001){
-      status="Out of water";
-    }else if(Math.abs(netVertical)<0.15 && Math.abs(speed)<0.03){
-      status="Floating";
-    }else if(netVertical>0){
-      status="Rising";
-    }else{
-      status="Sinking";
+    let status="Falling";
+    if(fluidDepth>=waterDepthLimit()-geom.height/2-.01 && Math.abs(fluidVelocity)<.03){
+      status="At bottom";
     }
-
     return {
       radius:geom.radius,
       height:geom.height,
-      submergedVolume,
-      buoyantForce,
+      submergedVolume:0,
+      buoyantForce:0,
       weightForce,
       netVertical,
       objectDensity,
-      submergedFraction,
+      submergedFraction:0,
       status
     };
   }
@@ -306,16 +294,13 @@
     }else if(mode==="fluid"){
       const s=fluidState();
       const pressure=values.density*G*Math.max(0,fluidDepth);
-      const submerged=(s.submergedFraction*100).toFixed(0);
       m.push(
         ["Pressure",Math.round(pressure)+" Pa"],
         ["Object density",s.objectDensity.toFixed(0)+" kg/m³"],
-        ["Buoyant force",s.buoyantForce.toFixed(2)+" N"],
-        ["Body weight",s.weightForce.toFixed(2)+" N"],
+        ["Weight",s.weightForce.toFixed(2)+" N"],
         ["Vertical force",s.netVertical.toFixed(2)+" N"],
-        ["Submerged",submerged+" %"],
-        ["State",s.status],
         ["Depth",Math.max(0,fluidDepth).toFixed(2)+" m"],
+        ["State",s.status],
         ["River flow",values.flow.toFixed(1)+" m/s"]
       );
     }else{
@@ -725,10 +710,7 @@
     ctx.stroke();
     ctx.restore();
 
-    const buoyArrow=clamp(25+s.buoyantForce/12,35,95);
     const weightArrow=clamp(25+s.weightForce/12,35,95);
-
-    if(s.buoyantForce>0.01) arrow(bodyX,bodyY-bodyH/2,bodyX,bodyY-bodyH/2-buoyArrow,"buoyancy");
     arrow(bodyX,bodyY+bodyH/2,bodyX,bodyY+bodyH/2+weightArrow,"weight");
 
     if(values.flow>.05){
@@ -739,7 +721,7 @@
     ctx.font="11px system-ui";
     ctx.fillText("surface",16,level-10);
     ctx.fillText("10 m water column",16,level+27);
-    ctx.fillText((s.submergedFraction*100).toFixed(0)+"% submerged",16,level+45);
+    ctx.fillText("gravity only",16,level+45);
     ctx.fillText(s.status,16,level+63);
     ctx.fillText(values.flow>.05?"current →":"no current",Math.max(16,w*.62),waterBottom-22);
   }
@@ -844,13 +826,13 @@
 
   function stepFluid(dt){
     const s=fluidState();
-    const verticalAcceleration=s.netVertical/Math.max(.1,values.mass);
+    const verticalAcceleration=-G;
     fluidVelocity+=verticalAcceleration*dt;
     fluidVelocity*=Math.pow(.995,dt*60);
     fluidDepth+=fluidVelocity*dt;
 
-    const topLimit=-s.height/2;
     const bottomLimit=waterDepthLimit()-s.height/2;
+    const topLimit=-s.height/2;
 
     if(fluidDepth<topLimit){
       fluidDepth=topLimit;
