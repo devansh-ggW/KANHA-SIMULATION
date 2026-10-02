@@ -96,6 +96,7 @@
   const potImage=new Image();
   potImage.src="../free-PNG-graphics-indian-food-of-makhan-butter-clay-pot-vector-illustration-th-1101533821-Photoroom.png";
   potImage.decoding="async";
+  potImage.addEventListener("load",()=>draw());
 
   const controls=document.getElementById("controlsMount");
   const metrics=document.getElementById("metrics");
