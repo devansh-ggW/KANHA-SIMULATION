@@ -5,6 +5,7 @@
 <meta name="description" content="KANHA SIMULATION — Where ancient stories meet real physics.">
 <title>KANHA SIMULATION</title><link rel="icon" href="icon.ico" type="image/x-icon">
 <link rel="stylesheet" href="css/site.css">
+<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
 </head>
 <body>
 <header class="topbar">
@@ -13,7 +14,7 @@
 <img class="brand-mark" src="icon.ico" alt="KANHA SIMULATION icon">
 <span class="brand-copy"><span class="brand-name">KANHA SIMULATION</span><span class="brand-tag">Where ancient stories meet real physics.</span></span>
 </a>
-<div class="nav-actions"><a class="nav-btn active" href="index.html">Home</a><a class="nav-btn" href="simulations.html">Simulations</a><a class="nav-btn" href="about.html">About</a></div>
+<div class="nav-actions"><a class="nav-btn active" href="index.html">Home</a><a class="nav-btn" href="simulations.html">Simulations</a><a class="nav-btn" href="about.html">About</a><a class="nav-btn" href="#support">Support</a></div>
 </nav>
 </header>
 
@@ -44,7 +45,33 @@
 <article class="card"><div class="card-kicker">Momentum</div><h3>Krishna's Collision Lab</h3><p>Explore one-dimensional collisions and momentum transfer.</p><div class="card-actions"><a class="launch" href="simulations/collision.html">Open lab →</a><span class="pill">Collision</span></div></article>
 </div>
 </section>
+<section class="support-section" id="support" aria-labelledby="support-title">
+<div class="support-frame">
+<div class="support-copy">
+<div class="eyebrow">Keep the labs free</div>
+<h2 id="support-title">Support KANHA SIMULATION.</h2>
+<p>Choose a support amount. Your payment opens securely in Paddle checkout without leaving KANHA.</p>
+<div class="support-meta"><span>One-time support</span><span>INR</span><span>Paddle checkout</span></div>
+</div>
+<div class="support-panel">
+<div class="support-label">Choose an amount</div>
+<div class="support-options" role="group" aria-label="Choose support amount">
+<button class="support-amount" type="button" data-paddle-price="50">₹50</button>
+<button class="support-amount" type="button" data-paddle-price="100">₹100</button>
+<button class="support-amount" type="button" data-paddle-price="300">₹300</button>
+<button class="support-amount is-selected" type="button" data-paddle-price="500">₹500</button>
+<button class="support-amount" type="button" data-paddle-price="700">₹700</button>
+<button class="support-amount" type="button" data-paddle-price="1000">₹1,000</button>
+</div>
+<div class="support-selected"><span>Selected</span><strong id="support-selected-amount">₹500</strong></div>
+<button class="support-pay" id="support-pay" type="button">Support KANHA <span>→</span></button>
+<p class="support-status" id="support-status" role="status" aria-live="polite"></p>
+</div>
+</div>
+</section>
+
 <footer class="footer"><span>Created by Devansh Sabde · Grade 8 · Gurukul Olympiad School</span><span>KANHA SIMULATION</span><span>Interactive Physics Universe</span><span>Frontend-only / GitHub Pages</span></footer>
 </main>
+<script src="js/paddle-donation.js"></script>
 </body>
 </html>
