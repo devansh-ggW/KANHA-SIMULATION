@@ -22,9 +22,9 @@ button{cursor:pointer}
 button:focus-visible,input:focus-visible{outline:2px solid #7dc1ff;outline-offset:3px}
 [hidden]{display:none!important}
 #app{min-height:100vh}
-.topbar{position:sticky;top:0;z-index:30;border-bottom:1px solid var(--line);background:rgba(6,16,26,.9);backdrop-filter:blur(8px)}
+.topbar{position:sticky;top:0;z-index:30;border-bottom:1px solid var(--line);background:rgba(6,16,26,.96)}
 .nav{width:min(1320px,94vw);margin:auto;height:72px;display:flex;align-items:center;justify-content:space-between;gap:22px}
-.brand{display:flex;align-items:center;gap:12px;color:var(--text);text-decoration:none}
+.brand{display:flex;align-items:center;gap:12px;color:var(--text);text-decoration:none;border:0;background:transparent;padding:0;text-align:left}
 .brand-mark{width:40px;height:40px;flex:none}
 .brand-copy{display:flex;flex-direction:column;line-height:1}
 .brand-name{font-size:13px;font-weight:800;letter-spacing:.2em}
@@ -271,6 +271,8 @@ input[type=range]{width:100%;accent-color:#58a7ff}
   const controlsMount=$('#controlsMount'), readoutGrid=$('#readoutGrid'), labTitle=$('#labTitle'), formulaEl=$('#formula'), labNote=$('#labNote'), modeHud=$('#modeHud'), stateHud=$('#stateHud'), playBtn=$('#playBtn'), perfBtn=$('#perfBtn'), perfText=$('#perfText');
   let mode='projectile', values={...modes.projectile.defaults}, running=false, raf=0, last=0, accumulator=0, simTime=0, perfMode='auto';
   let dpr=1, viewW=0, viewH=0, stageRect=null;
+  const bgCanvas=document.createElement('canvas');
+  const bgCtx=bgCanvas.getContext('2d',{alpha:false});
 
   const state={
     projectile:{x:0,y:0,flight:0},
@@ -281,13 +283,32 @@ input[type=range]{width:100%;accent-color:#58a7ff}
     orbit:{angle:0}
   };
 
+  function rebuildBackground(){
+    bgCanvas.width=Math.max(300,Math.round(viewW*dpr));
+    bgCanvas.height=Math.max(300,Math.round(viewH*dpr));
+    bgCtx.setTransform(dpr,0,0,dpr,0,0);
+    bgCtx.fillStyle='#071320';
+    bgCtx.fillRect(0,0,viewW,viewH);
+    const grad=bgCtx.createRadialGradient(viewW*.56,viewH*.4,10,viewW*.56,viewH*.4,viewW*.52);
+    grad.addColorStop(0,'rgba(29,124,255,.14)');
+    grad.addColorStop(1,'rgba(7,19,32,0)');
+    bgCtx.fillStyle=grad;
+    bgCtx.fillRect(0,0,viewW,viewH);
+    bgCtx.strokeStyle='rgba(255,255,255,.035)';
+    bgCtx.lineWidth=1;
+    const step=48;
+    for(let x=0;x<viewW;x+=step){bgCtx.beginPath();bgCtx.moveTo(x,0);bgCtx.lineTo(x,viewH);bgCtx.stroke();}
+    for(let y=0;y<viewH;y+=step){bgCtx.beginPath();bgCtx.moveTo(0,y);bgCtx.lineTo(viewW,y);bgCtx.stroke();}
+  }
+
   function resizeCanvas(){
     const rect=canvas.getBoundingClientRect();
-    dpr=Math.min(window.devicePixelRatio||1,perfMode==='max'?1:1.5);
+    dpr=Math.min(window.devicePixelRatio||1,perfMode==='max'?1:perfMode==='balanced'?1.25:1.5);
     viewW=Math.max(300,rect.width); viewH=Math.max(300,rect.height);
     canvas.width=Math.round(viewW*dpr); canvas.height=Math.round(viewH*dpr);
     ctx.setTransform(dpr,0,0,dpr,0,0);
     stageRect=rect;
+    rebuildBackground();
     draw();
   }
   new ResizeObserver(resizeCanvas).observe(canvas);
@@ -358,14 +379,7 @@ input[type=range]{width:100%;accent-color:#58a7ff}
   }
 
   function drawBackground(){
-    ctx.fillStyle='#071320';ctx.fillRect(0,0,viewW,viewH);
-    const grad=ctx.createRadialGradient(viewW*.56,viewH*.4,10,viewW*.56,viewH*.4,viewW*.52);
-    grad.addColorStop(0,'rgba(29,124,255,.14)');grad.addColorStop(1,'rgba(7,19,32,0)');
-    ctx.fillStyle=grad;ctx.fillRect(0,0,viewW,viewH);
-    ctx.strokeStyle='rgba(255,255,255,.035)';ctx.lineWidth=1;
-    const step=48;
-    for(let x=0;x<viewW;x+=step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,viewH);ctx.stroke();}
-    for(let y=0;y<viewH;y+=step){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(viewW,y);ctx.stroke();}
+    ctx.drawImage(bgCanvas,0,0,viewW,viewH);
   }
 
   function drawArrow(x,y,tx,ty,label){
@@ -379,7 +393,7 @@ input[type=range]{width:100%;accent-color:#58a7ff}
     ctx.strokeStyle='rgba(240,246,255,.15)';ctx.beginPath();ctx.moveTo(left,ground);ctx.lineTo(right,ground);ctx.stroke();
     const a=values.angle*Math.PI/180,u=values.speed,g=values.gravity,tMax=2*u*Math.sin(a)/g;
     ctx.strokeStyle='rgba(125,193,255,.55)';ctx.lineWidth=2;ctx.beginPath();
-    for(let i=0;i<=80;i++){const t=tMax*i/80;const x=left+u*Math.cos(a)*t*scale;const y=ground-(u*Math.sin(a)*t-.5*g*t*t)*scale;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();
+    for(let i=0;i<=60;i++){const t=tMax*i/80;const x=left+u*Math.cos(a)*t*scale;const y=ground-(u*Math.sin(a)*t-.5*g*t*t)*scale;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();
     const t=Math.min(simTime,tMax),x=left+u*Math.cos(a)*t*scale,y=ground-(u*Math.sin(a)*t-.5*g*t*t)*scale;
     ctx.save();ctx.translate(x,y);ctx.rotate(a);ctx.strokeStyle='#edf5ff';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(-14,0);ctx.lineTo(14,0);ctx.stroke();ctx.fillStyle='#d4ad63';ctx.beginPath();ctx.moveTo(14,0);ctx.lineTo(7,-4);ctx.lineTo(7,4);ctx.closePath();ctx.fill();ctx.restore();
     drawArrow(left+22,ground-20,left+22+u*Math.cos(a)*2.2,ground-20-u*Math.sin(a)*2.2,'v');
@@ -390,7 +404,7 @@ input[type=range]{width:100%;accent-color:#58a7ff}
     const cy=viewH*.5, amp=values.amplitude*Math.min(70,viewH*.12), wavelength=Math.max(45,(values.speed/values.frequency)*90), phase=state.wave.phase;
     ctx.strokeStyle='rgba(125,193,255,.35)';ctx.beginPath();ctx.moveTo(50,cy);ctx.lineTo(viewW-40,cy);ctx.stroke();
     ctx.strokeStyle='#55c1ba';ctx.lineWidth=2.2;ctx.beginPath();
-    for(let x=45;x<viewW-35;x+=3){const y=cy+Math.sin((x/wavelength)*Math.PI*2-phase)*amp;if(x===45)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();
+    for(let x=45;x<viewW-35;x+=4){const y=cy+Math.sin((x/wavelength)*Math.PI*2-phase)*amp;if(x===45)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();
     ctx.fillStyle='#edf5ff';ctx.font='12px system-ui';ctx.fillText('Amplitude',58,cy-amp-10);ctx.fillStyle='#8ea2b8';ctx.fillText('Wavelength →',viewW*.62,cy+amp+26);
     ctx.strokeStyle='rgba(212,173,99,.45)';ctx.lineWidth=1;ctx.beginPath();ctx.arc(95,cy,24,Math.PI,Math.PI*1.65);ctx.stroke();
     ctx.fillStyle='#d4ad63';ctx.fillText('flute',72,cy+54);
@@ -499,7 +513,7 @@ input[type=range]{width:100%;accent-color:#58a7ff}
   perfBtn.addEventListener('click',()=>setPerf(perfMode==='auto'?'balanced':perfMode==='balanced'?'max':'auto'));
 
   document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();});
-  window.addEventListener('resize',()=>{stageRect=canvas.getBoundingClientRect();resizeCanvas();},{passive:true});
+  window.addEventListener('resize',resizeCanvas,{passive:true});
 
   setMode('projectile');
   setView('home');
