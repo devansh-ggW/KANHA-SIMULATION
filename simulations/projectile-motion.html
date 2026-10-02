@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="Projectile motion simulation for angle, speed, gravity, range and maximum height."><title>Arjuna's Arrow — KANHA SIMULATION</title><link rel="stylesheet" href="../css/site.css"></head>
+<body>
+<header class="topbar"><nav class="nav"><a class="brand" href="../index.html"><svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true"><path d="M31 57C24 47 16 32 19 17 21 7 31 4 41 7c7 2 10 8 8 14-2 7-10 9-16 7 6 8 8 16 4 29z" fill="#1c8a98"/><ellipse cx="35" cy="18" rx="8" ry="12" fill="#0b2947"/><ellipse cx="35" cy="18" rx="4.5" ry="7" fill="#24a9a0"/><ellipse cx="35" cy="18" rx="2" ry="4" fill="#d4ad63"/></svg><span class="brand-copy"><span class="brand-name">KANHA SIMULATION</span><span class="brand-tag">Interactive physics universe</span></span></a><div class="nav-actions"><a class="nav-btn" href="../index.html">Home</a><a class="nav-btn active" href="../simulations.html">Simulations</a><a class="nav-btn" href="../about.html">About</a></div></nav></header>
+<main class="shell simulation-page" data-mode="projectile">
+<div class="lab-wrap">
+<div class="page-head"><div><a class="back-link" href="../simulations.html">← Back to simulations</a><div class="eyebrow" style="margin-top:18px">Interactive laboratory</div><h1 id="labTitle" class="section-title" style="font-size:58px;margin-top:14px">Arjuna's Arrow</h1></div><div class="top-actions"><span class="status">Local physics</span></div></div>
+<div class="lab-grid">
+<aside class="controls"><h3>Controls</h3><div id="controlsMount"></div><div class="small-actions"><button class="small-btn primary-dark" id="playBtn" type="button">Play</button><button class="small-btn" id="resetBtn" type="button">Reset</button></div><p class="hint">Animation runs only while the experiment is playing. Switching tabs or pausing stops the render loop.</p></aside>
+<div class="lab-main"><div class="canvas-wrap"><canvas id="simCanvas" aria-label="Arjuna's Arrow interactive physics simulation"></canvas><div class="hud"><span class="hud-item" id="modeHud">ARJUNA'S ARROW</span><span class="hud-item" id="stateHud">PAUSED</span></div></div>
+<aside class="readout"><h3>Live readout</h3><div class="metrics" id="metrics"></div><div class="formula" id="formula"></div><p class="readout-note" id="labNote"></p></aside></div>
+</div></div>
+<footer class="footer"><a href="../simulations.html">← Back to simulations</a><span>One experiment / one page</span><span>Frontend-only</span></footer>
+</main><script src="../js/simulation.js"></script></body></html>
