@@ -282,7 +282,7 @@
       g.className="control-group";
       const id="ctrl-"+key;
 
-      g.innerHTML='<div class="control-row"><label for="'+id+'">'+label+'</label><span class="control-value" id="value-'+key+'"></span></div><input id="'+id+'" type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+values[key']+'">';
+      g.innerHTML='<div class="control-row"><label for="'+id+'">'+label+'</label><span class="control-value" id="value-'+key+'"></span></div><input id="'+id+'" type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+values[key]+'">';
       controls.appendChild(g);
 
       const input=g.querySelector("input");
@@ -631,7 +631,8 @@
       }
     }
 
-    const wrappedX=((fluidX*55)%travelWidth+travelWidth)%travelWidth;
+    const horizontalSpeed=values.flow;
+    const wrappedX=((fluidX*horizontalSpeed*35)%travelWidth+travelWidth)%travelWidth;
     const bodyX=w*.16+wrappedX;
     const bodyY=level+fluidDepth*pixelsPerMeter;
 
@@ -794,6 +795,7 @@
     const dragForce=.5*values.density*Cd*area*relativeFlow*Math.abs(relativeFlow);
     fluidVelocityX+=(dragForce/Math.max(.1,values.mass))*dt;
     fluidVelocityX*=Math.pow(.999,dt*60);
+    fluidVelocityX=clamp(fluidVelocityX,-8,8);
     fluidX+=fluidVelocityX*dt;
   }
 
@@ -807,7 +809,7 @@
 
   function stepOrbit(dt){
     const substeps=4;
-    const subDt=dt*0.1/substeps;
+    const subDt=dt/substeps;
     for(let s=0;s<substeps;s++){
       const r2=orbitX*orbitX+orbitY*orbitY;
       const r=Math.max(.08,Math.sqrt(r2));
