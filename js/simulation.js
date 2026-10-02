@@ -9,11 +9,11 @@
     wave:{title:"Flute & Sound",formula:"v = fλ",note:"Frequency and amplitude shape the wave; the wave speed stays fixed.",defaults:{frequency:440,amplitude:1,speed:343},controls:[["frequency","Frequency",100,1000,1,"Hz"],["amplitude","Amplitude",.2,2,.1,"×"],["speed","Wave speed",100,500,1,"m/s"]]},
     rotation:{title:"Sudarshan Chakra",formula:"aᶜ = v² / r",note:"Rotate the disc and observe tangential speed and centripetal acceleration.",defaults:{radius:2,omega:5,mass:2},controls:[["radius","Radius",.5,4,.1,"m"],["omega","Angular speed",.5,12,.1,"rad/s"],["mass","Mass",.5,10,.1,"kg"]]},
     balance:{title:"Govardhan Balance",formula:"τ = rF sinφ",note:"Move the load and effort positions along the beam, then change force to see how torque and balance respond.",defaults:{mass:80,loadArm:2.2,effortArm:3,effort:650},controls:[["mass","Load mass",10,200,1,"kg"],["loadArm","Load position",.5,4,.1,"m from pivot"],["effortArm","Effort position",.5,5,.1,"m from pivot"],["effort","Effort force",50,1200,10,"N"]]},
-    fluid:{title:"Yamuna Pressure",formula:"p = ρgh",note:"Play to animate a visible river current while the floating body drifts, bobs and responds to buoyancy.",defaults:{depth:4,density:1000,volume:.08,flow:1.4},controls:[["depth","Depth",.2,10,.1,"m"],["density","Water density",700,1200,1,"kg/m³"],["volume","Body volume",.02,.2,.01,"m³"],["flow","River flow",0,4,.1,"m/s"]]},
+    fluid:{title:"Yamuna Pressure",formula:"Fᵦ = ρgVₛᵤᵦ",note:"Change body mass, volume and water density to make the object float, sink or settle at an equilibrium depth. River flow controls horizontal drift.",defaults:{depth:4,density:1000,volume:.08,mass:60,flow:1.4},controls:[["depth","Water depth",.2,10,.1,"m"],["density","Water density",700,1200,1,"kg/m³"],["volume","Body volume",.02,.2,.01,"m³"],["mass","Body mass",20,160,1,"kg"],["flow","River flow",0,4,.1,"m/s"]]},
     orbit:{title:"Kanha Sky",formula:"v = √(GM / r)",note:"Play the stable orbit model. Change radius or speed to explore the relationship.",defaults:{radius:3,mass:120,velocity:6},controls:[["radius","Orbit radius",1,6,.1,"AU"],["mass","Central mass",30,250,1,"M"],["velocity","Orbital speed",2,12,.1,"km/s"]]}
   }[mode];
   let values={...config.defaults},running=false,raf=0,last=0,acc=0,time=0,dpr=1,w=0,h=0;
-  let phase=0,balanceAngle=0.05,balanceVelocity=0,fluidX=0;
+  let phase=0,balanceAngle=0.05,balanceVelocity=0,fluidX=0,fluidDepth=.35,fluidVelocity=0;
   const bg=document.createElement("canvas"),bgc=bg.getContext("2d",{alpha:false});
   const controls=document.getElementById("controlsMount"),metrics=document.getElementById("metrics"),title=document.getElementById("labTitle"),formula=document.getElementById("formula"),note=document.getElementById("labNote"),state=document.getElementById("stateHud"),play=document.getElementById("playBtn");
   title.textContent=config.title;formula.textContent=config.formula;note.textContent=config.note;document.getElementById("modeHud").textContent=config.title.toUpperCase();
@@ -31,7 +31,7 @@
       const g=9.81,load=values.mass*g,required=load*values.loadArm/Math.max(.1,values.effortArm),net=values.effort*values.effortArm*Math.cos(balanceAngle)-load*values.loadArm*Math.cos(balanceAngle);
       m.push(["Load force",load.toFixed(1)+" N"],["Effort force",values.effort.toFixed(0)+" N"],["Required effort",required.toFixed(1)+" N"],["Net torque",net.toFixed(1)+" N·m"]);
     }else if(mode==="fluid"){
-      const p=values.density*9.81*values.depth,b=values.density*9.81*values.volume;m.push(["Pressure",Math.round(p)+" Pa"],["Buoyant force",b.toFixed(2)+" N"],["Depth",values.depth.toFixed(1)+" m"],["River flow",values.flow.toFixed(1)+" m/s"]);
+      const p=values.density*9.81*values.depth,bodyRadius=Math.cbrt((3*values.volume)/(4*Math.PI)),submerged=Math.max(0,Math.min(1,(fluidDepth+bodyRadius)/(2*bodyRadius))),b=values.density*9.81*values.volume*submerged,wgt=values.mass*9.81,net=b-wgt; m.push(["Pressure",Math.round(p)+" Pa"],["Buoyant force",b.toFixed(2)+" N"],["Body weight",wgt.toFixed(2)+" N"],["Vertical force",net.toFixed(2)+" N"],["Body depth",(Math.max(0,fluidDepth)).toFixed(2)+" m"],["River flow",values.flow.toFixed(1)+" m/s"]);
     }else{
       const ideal=Math.sqrt(values.mass*20/values.radius),ratio=values.velocity/ideal;m.push(["Ideal speed",ideal.toFixed(2)+" km/s"],["Current speed",values.velocity.toFixed(2)+" km/s"],["Speed ratio",ratio.toFixed(2)],["Radius",values.radius.toFixed(1)+" AU"]);
     }
@@ -135,7 +135,7 @@
     const top=h*.16,bottom=h*.90,level=top+(bottom-top)*.16,waterBottom=bottom;
     ctx.fillStyle="rgba(34,184,173,.14)";ctx.fillRect(0,level,w,waterBottom-level);
 
-    // Moving surface.
+    // Surface waves are visual water motion; they do not fake buoyancy.
     ctx.strokeStyle="rgba(85,193,186,.82)";ctx.lineWidth=2;ctx.beginPath();
     for(let x=0;x<=w;x+=5){
       const y=level+Math.sin(x*.035+phase*1.7)*2.8+Math.sin(x*.014-phase*.8)*1.4;
@@ -143,7 +143,7 @@
     }
     ctx.stroke();
 
-    // Lightweight current streaks that visibly travel across the river.
+    // Current streaks visibly travel only when flow is non-zero.
     ctx.strokeStyle="rgba(125,193,255,.23)";ctx.lineWidth=1.2;
     for(let row=0;row<6;row++){
       const y=level+45+row*(waterBottom-level-90)/5;
@@ -154,23 +154,35 @@
       }
     }
 
-    // Floating body moves with the current instead of only bobbing in place.
+    // Convert physical body depth into screen position.
+    const bodyRadiusPhysical=Math.cbrt((3*values.volume)/(4*Math.PI));
+    const pixelsPerMeter=(waterBottom-level)/Math.max(.2,values.depth);
+    const bodyR=Math.max(17,Math.min(34,bodyRadiusPhysical*pixelsPerMeter));
     const travelWidth=Math.max(160,w*.72);
     const bodyX=w*.14+((fluidX*values.flow*70)%travelWidth);
-    const targetDepth=Math.min(.82,.2+values.depth/10*.62);
-    const bodyY=level+(waterBottom-level)*targetDepth+Math.sin(phase*2.1)*7;
-    const bodyR=26;
-    ctx.fillStyle="#d4ad63";ctx.beginPath();ctx.arc(bodyX,bodyY,bodyR,0,Math.PI*2);ctx.fill();
+    const bodyY=level+fluidDepth*pixelsPerMeter;
 
-    // Direction of flow.
-    arrow(bodyX-70,bodyY-48,bodyX-20,bodyY-48,"current");
-    arrow(bodyX,bodyY-43,bodyX,bodyY-74,"buoyancy");
-    arrow(bodyX,bodyY+6,bodyX,bodyY+46,"weight");
+    // Body and simple submerged-waterline cue.
+    ctx.fillStyle="#d4ad63";ctx.beginPath();ctx.arc(bodyX,bodyY,bodyR,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle="rgba(255,255,255,.55)";ctx.lineWidth=1.5;ctx.beginPath();
+    ctx.moveTo(bodyX-bodyR*.86,level+Math.max(0,fluidDepth)*pixelsPerMeter);
+    ctx.lineTo(bodyX+bodyR*.86,level+Math.max(0,fluidDepth)*pixelsPerMeter);ctx.stroke();
+
+    // Force arrows use the actual current forces.
+    const submerged=Math.max(0,Math.min(1,(fluidDepth+bodyRadiusPhysical)/(2*bodyRadiusPhysical)));
+    const buoyantForce=values.density*9.81*values.volume*submerged;
+    const weightForce=values.mass*9.81;
+    const buoyArrow=28+Math.min(54,buoyantForce/Math.max(1,weightForce)*34);
+    const weightArrow=28+Math.min(54,weightForce/Math.max(1,buoyantForce+1)*34);
+    arrow(bodyX,bodyY+bodyR,bodyX,bodyY+bodyR+weightArrow,"weight");
+    arrow(bodyX,bodyY-bodyR,bodyX,bodyY-bodyR-buoyArrow,"buoyancy");
+    if(values.flow>0.05) arrow(bodyX-bodyR-56,bodyY-48,bodyX-bodyR-8,bodyY-48,"current");
 
     ctx.fillStyle="#8ea2b8";ctx.font="11px system-ui";
     ctx.fillText("surface",16,level-10);
-    ctx.fillText(values.depth.toFixed(1)+" m depth",16,level+27);
-    ctx.fillText("river current →",Math.max(16,w*.62),waterBottom-22);
+    ctx.fillText(values.depth.toFixed(1)+" m water depth",16,level+27);
+    ctx.fillText((fluidDepth<0?"above water":submerged>.98?"fully submerged":submerged<.02?"out of water":Math.round(submerged*100)+"% submerged"),16,level+45);
+    ctx.fillText(values.flow>0.05?"river current →":"no current",Math.max(16,w*.62),waterBottom-22);
   }
   function drawOrbit(){
     const cx=w*.53,cy=h*.5,r=Math.min(w,h)*.27,ang=phase*.24;
@@ -204,13 +216,26 @@
       }
 
       if(mode==="fluid"){
+        const g=9.81;
+        const bodyRadiusPhysical=Math.cbrt((3*values.volume)/(4*Math.PI));
+        const submerged=Math.max(0,Math.min(1,(fluidDepth+bodyRadiusPhysical)/(2*bodyRadiusPhysical)));
+        const buoyantForce=values.density*g*values.volume*submerged;
+        const weightForce=values.mass*g;
+        const verticalAcceleration=(buoyantForce-weightForce)/Math.max(.1,values.mass);
+        fluidVelocity+=verticalAcceleration*(1/60);
+        fluidVelocity*=.995;
+        fluidDepth+=fluidVelocity*(1/60);
+        const upperLimit=-bodyRadiusPhysical*.92;
+        const lowerLimit=Math.max(0,values.depth-bodyRadiusPhysical*.92);
+        if(fluidDepth<upperLimit){fluidDepth=upperLimit;fluidVelocity=Math.abs(fluidVelocity)*.15}
+        if(fluidDepth>lowerLimit){fluidDepth=lowerLimit;fluidVelocity=-Math.abs(fluidVelocity)*.15}
         fluidX+=1/60;
       }
 
       acc-=1/60;
     }draw();raf=requestAnimationFrame(loop)}
   play.addEventListener("click",()=>setRunning(!running));
-  document.getElementById("resetBtn").addEventListener("click",()=>{setRunning(false);values={...config.defaults};phase=0;time=0;balanceAngle=0.05;balanceVelocity=0;fluidX=0;buildControls();metricsHtml();draw()});
+  document.getElementById("resetBtn").addEventListener("click",()=>{setRunning(false);values={...config.defaults};phase=0;time=0;balanceAngle=0.05;balanceVelocity=0;fluidX=0;fluidDepth=.35;fluidVelocity=0;buildControls();metricsHtml();draw()});
   document.addEventListener("visibilitychange",()=>{if(document.hidden)setRunning(false)});
   window.addEventListener("resize",resize,{passive:true});
   buildControls();metricsHtml();resize();
