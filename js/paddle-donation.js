@@ -4,7 +4,7 @@
 
   // Paddle client-side tokens are intended for frontend use.
   // Replace this placeholder with your LIVE client-side token.
-  const PADDLE_CLIENT_SIDE_TOKEN = "PASTE_LIVE_CLIENT_SIDE_TOKEN_HERE";
+  const PADDLE_CLIENT_SIDE_TOKEN = "live_9cc9eb9158aae539dcd93c3b9b4";
 
   const prices = {
     50: "pri_01m3xb9tgawjk64fep9704em5m",
