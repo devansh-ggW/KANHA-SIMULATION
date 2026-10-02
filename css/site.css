@@ -6,11 +6,14 @@
 *{box-sizing:border-box}
 html{background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
 
-/* Lightweight signature starfield — one cached layer, no DOM stars, no JS loop */
-body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background:
-radial-gradient(900px 560px at 78% -8%,rgba(43,130,255,.10),transparent 68%),
-url("../assets/signature-starfield.svg") center top/cover no-repeat;opacity:.72;mix-blend-mode:screen}
-body>*{position:relative;z-index:1}
+
+
+/* Lightweight interactive signature starfield */
+body::before{display:none!important}
+.signature-starfield-canvas,.signature-starfield-interactive{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none}
+.signature-starfield-canvas{z-index:0;opacity:.78}
+.signature-starfield-interactive{z-index:1}
+body>*{position:relative;z-index:2}
 
 body{margin:0;min-height:100vh;background:
 radial-gradient(800px 500px at 78% -10%,rgba(43,130,255,.12),transparent 60%),
