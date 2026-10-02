@@ -1,11 +1,8 @@
-/* KANHA SIMULATION — Paddle support */
+/* KANHA SIMULATION — Paddle donations */
 (() => {
   "use strict";
 
-  // Paddle client-side tokens are intended for frontend use.
-  // Replace this placeholder with your LIVE client-side token.
   const PADDLE_CLIENT_SIDE_TOKEN = "live_9cc9eb9158aae539dcd93c3b9b4";
-
   const prices = {
     50: "pri_01m3xb9tgawjk64fep9704em5m",
     100: "pri_01m3xba69gghgvx8btqc5ktxbd",
@@ -15,80 +12,106 @@
     1000: "pri_01m3xbdwbtvcp774cbwp9bbfc7"
   };
 
-  const amountButtons = Array.from(document.querySelectorAll("[data-paddle-price]"));
-  const selectedAmount = document.getElementById("support-selected-amount");
-  const payButton = document.getElementById("support-pay");
-  const status = document.getElementById("support-status");
-
-  if (!amountButtons.length || !selectedAmount || !payButton || !status) return;
-
-  let selected = 500;
-
-  const setStatus = (message) => {
-    status.textContent = message || "";
-  };
-
-  const selectAmount = (amount) => {
-    if (!prices[amount]) return;
-    selected = amount;
-    amountButtons.forEach((button) => {
-      const active = Number(button.dataset.paddlePrice) === selected;
-      button.classList.toggle("is-selected", active);
-      button.setAttribute("aria-pressed", String(active));
+  const loadPaddle = () => {
+    if (window.Paddle) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-kanha-paddle]');
+      if (existing) {
+        existing.addEventListener("load", resolve, { once: true });
+        existing.addEventListener("error", reject, { once: true });
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://cdn.paddle.com/paddle/v2/paddle.js";
+      script.async = true;
+      script.dataset.kanhaPaddle = "true";
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
     });
-    selectedAmount.textContent = amount === 1000 ? "₹1,000" : "₹" + amount.toLocaleString("en-IN");
-    setStatus("");
   };
 
-  amountButtons.forEach((button) => {
-    button.setAttribute("aria-pressed", String(Number(button.dataset.paddlePrice) === selected));
-    button.addEventListener("click", () => selectAmount(Number(button.dataset.paddlePrice)));
-  });
+  const navButtons = document.querySelectorAll("[data-kanha-donate]");
+  if (!navButtons.length) return;
 
-  payButton.addEventListener("click", () => {
-    if (!window.Paddle) {
-      setStatus("Paddle could not load. Please refresh and try again.");
-      return;
-    }
+  const modal = document.createElement("div");
+  modal.className = "donate-modal-backdrop";
+  modal.hidden = true;
+  modal.innerHTML = `
+    <div class="donate-modal" role="dialog" aria-modal="true" aria-labelledby="donate-title">
+      <button class="donate-close" type="button" aria-label="Close donation window">×</button>
+      <div class="donate-eyebrow">Support the project</div>
+      <h2 id="donate-title">Donate to KANHA SIMULATION</h2>
+      <p>Choose a one-time amount to support the free physics labs.</p>
+      <div class="donate-options" role="group" aria-label="Donation amount">
+        <button type="button" data-donate-amount="50">₹50</button>
+        <button type="button" data-donate-amount="100">₹100</button>
+        <button type="button" data-donate-amount="300">₹300</button>
+        <button type="button" data-donate-amount="500">₹500</button>
+        <button type="button" data-donate-amount="700">₹700</button>
+        <button type="button" data-donate-amount="1000">₹1,000</button>
+      </div>
+      <div class="donate-note">Secure checkout powered by Paddle · INR</div>
+      <p class="donate-status" id="donate-status" role="status" aria-live="polite"></p>
+    </div>
+  `;
+  document.body.appendChild(modal);
 
-    if (!PADDLE_CLIENT_SIDE_TOKEN || PADDLE_CLIENT_SIDE_TOKEN.includes("PASTE_")) {
-      setStatus("Paddle is ready, but the client-side token still needs to be added.");
-      return;
-    }
+  const closeButton = modal.querySelector(".donate-close");
+  const status = modal.querySelector(".donate-status");
 
-    const priceId = prices[selected];
-    if (!priceId) {
-      setStatus("That support amount is unavailable right now.");
-      return;
-    }
+  const openModal = () => {
+    modal.hidden = false;
+    document.body.classList.add("donate-modal-open");
+    status.textContent = "";
+    requestAnimationFrame(() => modal.classList.add("is-open"));
+  };
+
+  const closeModal = () => {
+    modal.classList.remove("is-open");
+    document.body.classList.remove("donate-modal-open");
+    window.setTimeout(() => { modal.hidden = true; }, 150);
+  };
+
+  const openCheckout = async (amount) => {
+    const priceId = prices[amount];
+    if (!priceId) return;
 
     try {
+      await loadPaddle();
+      if (!PADDLE_CLIENT_SIDE_TOKEN || PADDLE_CLIENT_SIDE_TOKEN.includes("PASTE_")) {
+        status.textContent = "Paddle checkout is not configured yet.";
+        return;
+      }
+
+      if (!window.Paddle.__kanhaInitialized) {
+        window.Paddle.Initialize({
+          token: PADDLE_CLIENT_SIDE_TOKEN,
+          checkout: { settings: { displayMode: "overlay", theme: "light", locale: "en" } }
+        });
+        window.Paddle.__kanhaInitialized = true;
+      }
+
       window.Paddle.Checkout.open({
         items: [{ priceId, quantity: 1 }],
-        settings: {
-          displayMode: "overlay",
-          theme: "dark",
-          locale: "en"
-        }
+        settings: { displayMode: "overlay", theme: "light", locale: "en" }
       });
+      closeModal();
     } catch (error) {
       console.error("Paddle checkout error:", error);
-      setStatus("Checkout could not be opened. Please try again.");
+      status.textContent = "Checkout could not be opened. Please try again.";
     }
-  });
+  };
 
-  try {
-    window.Paddle.Initialize({
-      token: PADDLE_CLIENT_SIDE_TOKEN,
-      checkout: {
-        settings: {
-          displayMode: "overlay",
-          theme: "dark",
-          locale: "en"
-        }
-      }
-    });
-  } catch (error) {
-    console.error("Paddle initialization error:", error);
-  }
+  navButtons.forEach((button) => button.addEventListener("click", openModal));
+  closeButton.addEventListener("click", closeModal);
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) closeModal();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !modal.hidden) closeModal();
+  });
+  modal.querySelectorAll("[data-donate-amount]").forEach((button) => {
+    button.addEventListener("click", () => openCheckout(Number(button.dataset.donateAmount)));
+  });
 })();
