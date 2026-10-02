@@ -214,7 +214,6 @@
       radius:geom.radius,
       height:geom.height,
       submergedVolume:0,
-      buoyantForce:0,
       weightForce,
       netVertical,
       objectDensity,
