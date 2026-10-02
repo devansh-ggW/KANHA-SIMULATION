@@ -22,13 +22,17 @@
     count.textContent = filtered.length + " of " + simulations.length + " simulations";
 
     mount.innerHTML = filtered.map((sim, i) => `
-      <a class="phet-tile" href="https://phet.colorado.edu/en/simulations/${encodeURIComponent(sim.slug)}" target="_blank" rel="noopener noreferrer">
+      <button class="phet-tile" type="button" data-sim="${esc(sim.slug)}" data-title="${esc(sim.title)}">
         <span class="phet-index">${String(i + 1).padStart(2,"0")}</span>
         <span class="card-kicker">${esc(sim.category)}</span>
         <h4>${esc(sim.title)}</h4>
-        <span class="launch">Open original simulation ↗</span>
-      </a>
+        <span class="launch">Launch inside KANHA →</span>
+      </button>
     `).join("") || '<div class="phet-empty">No simulations match that search.</div>';
+
+    mount.querySelectorAll("[data-sim]").forEach(tile => {
+      tile.addEventListener("click", () => openSimulation(tile.dataset.sim, tile.dataset.title));
+    });
   };
 
   const categories = [...new Set(simulations.map(sim => sim.category))].sort();
@@ -37,6 +41,52 @@
     option.value = cat;
     option.textContent = cat;
     category.appendChild(option);
+  });
+
+  const modal = document.createElement("div");
+  modal.className = "phet-modal";
+  modal.hidden = true;
+  modal.innerHTML = `
+    <div class="phet-modal-backdrop" data-close></div>
+    <section class="phet-modal-panel" role="dialog" aria-modal="true" aria-labelledby="phetModalTitle">
+      <header class="phet-modal-head">
+        <div>
+          <span class="eyebrow">KANHA PHYSICS LAB / PHET</span>
+          <h3 id="phetModalTitle">Simulation</h3>
+        </div>
+        <button class="phet-close" type="button" aria-label="Close simulation" data-close>Close</button>
+      </header>
+      <div class="phet-frame-wrap">
+        <iframe id="phetFrame" title="PhET simulation" allow="fullscreen" loading="eager"></iframe>
+      </div>
+      <div class="phet-modal-foot">
+        <span>Simulation by PhET Interactive Simulations, University of Colorado Boulder, licensed under CC BY-NC 4.0.</span>
+        <a href="https://phet.colorado.edu" target="_blank" rel="noopener noreferrer">PhET</a>
+      </div>
+    </section>
+  `;
+  document.body.appendChild(modal);
+  const frame = modal.querySelector("#phetFrame");
+  const modalTitle = modal.querySelector("#phetModalTitle");
+
+  function openSimulation(slug, title) {
+    modalTitle.textContent = title;
+    frame.src = "https://phet.colorado.edu/sims/html/" + encodeURIComponent(slug) + "/latest/" + encodeURIComponent(slug) + "_en_iframe.html";
+    modal.hidden = false;
+    document.body.classList.add("phet-modal-open");
+  }
+
+  function closeSimulation() {
+    modal.hidden = true;
+    frame.src = "about:blank";
+    document.body.classList.remove("phet-modal-open");
+  }
+
+  modal.addEventListener("click", event => {
+    if (event.target.closest("[data-close]")) closeSimulation();
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && !modal.hidden) closeSimulation();
   });
 
   search.addEventListener("input", render);
