@@ -8,12 +8,12 @@
     projectile:{title:"Arjuna's Arrow",formula:"R = u² sin(2θ) / g",note:"Adjust the launch conditions, then press Play.",defaults:{angle:45,speed:18,gravity:9.81},controls:[["angle","Launch angle",10,80,1,"°"],["speed","Launch speed",5,30,.5,"m/s"],["gravity","Gravity",1,20,.01,"m/s²"]]},
     wave:{title:"Flute & Sound",formula:"v = fλ",note:"Frequency and amplitude shape the wave; the wave speed stays fixed.",defaults:{frequency:440,amplitude:1,speed:343},controls:[["frequency","Frequency",100,1000,1,"Hz"],["amplitude","Amplitude",.2,2,.1,"×"],["speed","Wave speed",100,500,1,"m/s"]]},
     rotation:{title:"Sudarshan Chakra",formula:"aᶜ = v² / r",note:"Rotate the disc and observe tangential speed and centripetal acceleration.",defaults:{radius:2,omega:5,mass:2},controls:[["radius","Radius",.5,4,.1,"m"],["omega","Angular speed",.5,12,.1,"rad/s"],["mass","Mass",.5,10,.1,"kg"]]},
-    balance:{title:"Govardhan Balance",formula:"τ = rF sinθ",note:"Play the experiment to see the load gently move and the support response change.",defaults:{mass:80,arm:2.2,angle:90},controls:[["mass","Load mass",10,200,1,"kg"],["arm","Lever arm",.5,4,.1,"m"],["angle","Force angle",30,150,1,"°"]]},
-    fluid:{title:"Yamuna Pressure",formula:"p = ρgh",note:"Play to animate the water surface and floating body while depth controls the pressure.",defaults:{depth:4,density:1000,volume:.08},controls:[["depth","Depth",.2,10,.1,"m"],["density","Water density",700,1200,1,"kg/m³"],["volume","Body volume",.02,.2,.01,"m³"]]},
+    balance:{title:"Govardhan Balance",formula:"τ = rF sinφ",note:"A lever experiment with a load on one side and an applied effort on the other. Change the effort to see the beam respond.",defaults:{mass:80,loadArm:2.2,effortArm:3,effort:650},controls:[["mass","Load mass",10,200,1,"kg"],["loadArm","Load arm",.5,4,.1,"m"],["effortArm","Effort arm",.5,5,.1,"m"],["effort","Effort force",50,1200,10,"N"]]}
+    fluid:{title:"Yamuna Pressure",formula:"p = ρgh",note:"Play to animate a visible river current while the floating body drifts, bobs and responds to buoyancy.",defaults:{depth:4,density:1000,volume:.08,flow:1.4},controls:[["depth","Depth",.2,10,.1,"m"],["density","Water density",700,1200,1,"kg/m³"],["volume","Body volume",.02,.2,.01,"m³"],["flow","River flow",.2,4,.1,"m/s"]]},
     orbit:{title:"Kanha Sky",formula:"v = √(GM / r)",note:"Play the stable orbit model. Change radius or speed to explore the relationship.",defaults:{radius:3,mass:120,velocity:6},controls:[["radius","Orbit radius",1,6,.1,"AU"],["mass","Central mass",30,250,1,"M"],["velocity","Orbital speed",2,12,.1,"km/s"]]}
   }[mode];
   let values={...config.defaults},running=false,raf=0,last=0,acc=0,time=0,dpr=1,w=0,h=0;
-  let phase=0;
+  let phase=0,balanceAngle=0.05,balanceVelocity=0,fluidX=0;
   const bg=document.createElement("canvas"),bgc=bg.getContext("2d",{alpha:false});
   const controls=document.getElementById("controlsMount"),metrics=document.getElementById("metrics"),title=document.getElementById("labTitle"),formula=document.getElementById("formula"),note=document.getElementById("labNote"),state=document.getElementById("stateHud"),play=document.getElementById("playBtn");
   title.textContent=config.title;formula.textContent=config.formula;note.textContent=config.note;document.getElementById("modeHud").textContent=config.title.toUpperCase();
@@ -28,9 +28,10 @@
     }else if(mode==="rotation"){
       const v=values.radius*values.omega,ac=v*v/values.radius,ke=.5*values.mass*v*v;m.push(["Tangential speed",v.toFixed(2)+" m/s"],["Centripetal accel.",ac.toFixed(2)+" m/s²"],["Angular speed",values.omega.toFixed(2)+" rad/s"],["Kinetic energy",ke.toFixed(2)+" J"]);
     }else if(mode==="balance"){
-      const g=9.81,w=values.mass*g,t=w*values.arm*Math.sin(values.angle*Math.PI/180);m.push(["Weight",w.toFixed(1)+" N"],["Torque",t.toFixed(1)+" N·m"],["Arm",values.arm.toFixed(2)+" m"],["Angle",values.angle.toFixed(0)+"°"]);
+      const g=9.81,load=values.mass*g,required=load*values.loadArm/Math.max(.1,values.effortArm),net=values.effort*values.effortArm*Math.cos(balanceAngle)-load*values.loadArm*Math.cos(balanceAngle);
+      m.push(["Load force",load.toFixed(1)+" N"],["Effort force",values.effort.toFixed(0)+" N"],["Required effort",required.toFixed(1)+" N"],["Net torque",net.toFixed(1)+" N·m"]);
     }else if(mode==="fluid"){
-      const p=values.density*9.81*values.depth,b=values.density*9.81*values.volume;m.push(["Pressure",Math.round(p)+" Pa"],["Buoyant force",b.toFixed(2)+" N"],["Depth",values.depth.toFixed(1)+" m"],["Density",values.density.toFixed(0)+" kg/m³"]);
+      const p=values.density*9.81*values.depth,b=values.density*9.81*values.volume;m.push(["Pressure",Math.round(p)+" Pa"],["Buoyant force",b.toFixed(2)+" N"],["Depth",values.depth.toFixed(1)+" m"],["River flow",values.flow.toFixed(1)+" m/s"]);
     }else{
       const ideal=Math.sqrt(values.mass*20/values.radius),ratio=values.velocity/ideal;m.push(["Ideal speed",ideal.toFixed(2)+" km/s"],["Current speed",values.velocity.toFixed(2)+" km/s"],["Speed ratio",ratio.toFixed(2)],["Radius",values.radius.toFixed(1)+" AU"]);
     }
@@ -99,27 +100,77 @@
     arrow(cx,cy-r*.34,cx+r*.7,cy-r*.34,"tangential");
   }
   function drawBalance(){
-    const baseY=h*.56,cx=w*.52,arm=values.arm*Math.min(w*.12,60),a=values.angle*Math.PI/180;
-    const sway=Math.sin(phase*.8)*Math.min(6,values.mass*.02),loadX=cx+arm*Math.cos(a)+sway,loadY=baseY-18+Math.sin(phase)*3;
-    ctx.strokeStyle="#557088";ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(cx-arm,baseY);ctx.lineTo(cx+arm,baseY);ctx.stroke();
-    ctx.fillStyle="#d4ad63";ctx.beginPath();ctx.moveTo(cx-16,baseY+8);ctx.lineTo(cx+16,baseY+8);ctx.lineTo(cx,baseY+68);ctx.closePath();ctx.fill();
-    ctx.fillStyle="#1d7cff";ctx.beginPath();ctx.arc(loadX,loadY,22,0,Math.PI*2);ctx.fill();
-    arrow(loadX,loadY,loadX,loadY+82,"weight");arrow(cx,baseY+56,cx,baseY-8,"support");
-    ctx.fillStyle="#8ea2b8";ctx.font="11px system-ui";ctx.fillText("load",loadX-14,loadY-32);
+    const pivotX=w*.52,pivotY=h*.56,scale=Math.min(w*.14,62),left=values.loadArm*scale,right=values.effortArm*scale,a=balanceAngle;
+    const loadX=pivotX-left*Math.cos(a),loadY=pivotY-left*Math.sin(a);
+    const effortX=pivotX+right*Math.cos(a),effortY=pivotY+right*Math.sin(a);
+
+    // Lever with subtle depth.
+    ctx.save();
+    ctx.translate(pivotX,pivotY);
+    ctx.rotate(a);
+    ctx.strokeStyle="rgba(15,26,38,.5)";ctx.lineWidth=13;ctx.beginPath();ctx.moveTo(-left,4);ctx.lineTo(right,4);ctx.stroke();
+    ctx.strokeStyle="#557088";ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(-left,0);ctx.lineTo(right,0);ctx.stroke();
+    ctx.strokeStyle="rgba(212,173,99,.5)";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-left,-4);ctx.lineTo(right,-4);ctx.stroke();
+    ctx.restore();
+
+    // Pivot/support.
+    ctx.fillStyle="#d4ad63";ctx.beginPath();ctx.moveTo(pivotX-18,pivotY+10);ctx.lineTo(pivotX+18,pivotY+10);ctx.lineTo(pivotX,pivotY+76);ctx.closePath();ctx.fill();
+    ctx.fillStyle="#091522";ctx.beginPath();ctx.arc(pivotX,pivotY,8,0,Math.PI*2);ctx.fill();
+
+    // Load.
+    ctx.fillStyle="#1d7cff";ctx.beginPath();ctx.arc(loadX,loadY,23,0,Math.PI*2);ctx.fill();
+    arrow(loadX,loadY,loadX,loadY+86,"load");
+    ctx.fillStyle="#b9cbe0";ctx.font="11px system-ui";ctx.fillText(values.mass.toFixed(0)+" kg",loadX-18,loadY-31);
+
+    // Applied effort.
+    ctx.fillStyle="#25b8ad";ctx.beginPath();ctx.arc(effortX,effortY,19,0,Math.PI*2);ctx.fill();
+    arrow(effortX,effortY,effortX,effortY-86,"effort");
+    ctx.fillStyle="#b9cbe0";ctx.fillText(values.effort.toFixed(0)+" N",effortX-19,effortY+37);
+
+    // Support force.
+    arrow(pivotX,pivotY+55,pivotX,pivotY-5,"support");
+    ctx.fillStyle="#8ea2b8";ctx.fillText("pivot",pivotX+13,pivotY+24);
   }
   function drawFluid(){
-    const top=h*.18,bottom=h*.88,level=top+(bottom-top)*.15;
-    ctx.fillStyle="rgba(34,184,173,.14)";ctx.fillRect(0,level,w,bottom-level);
-    ctx.strokeStyle="rgba(85,193,186,.7)";ctx.lineWidth=2;ctx.beginPath();
-    ctx.moveTo(0,level);
-    for(let x=0;x<=w;x+=6)ctx.lineTo(x,level+Math.sin(x*.035+phase)*2.4);
+    const top=h*.16,bottom=h*.90,level=top+(bottom-top)*.16,waterBottom=bottom;
+    ctx.fillStyle="rgba(34,184,173,.14)";ctx.fillRect(0,level,w,waterBottom-level);
+
+    // Moving surface.
+    ctx.strokeStyle="rgba(85,193,186,.82)";ctx.lineWidth=2;ctx.beginPath();
+    for(let x=0;x<=w;x+=5){
+      const y=level+Math.sin(x*.035+phase*1.7)*2.8+Math.sin(x*.014-phase*.8)*1.4;
+      x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
     ctx.stroke();
-    const bodyY=level+(bottom-level)*Math.min(.82,.2+values.depth/10*.62)+Math.sin(phase*1.8)*5,bodyR=26;
-    ctx.fillStyle="#d4ad63";ctx.beginPath();ctx.arc(w*.55,bodyY,bodyR,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle="rgba(237,245,255,.42)";ctx.lineWidth=1.4;
-    for(let i=0;i<7;i++){const py=level+35+i*(bottom-level-70)/6;const len=30+py/bottom*42;ctx.beginPath();ctx.moveTo(60,py);ctx.lineTo(60+len,py);ctx.stroke()}
-    arrow(w*.55,bodyY-42,w*.55,bodyY-72,"buoyancy");arrow(w*.55,bodyY+4,w*.55,bodyY+45,"weight");
-    ctx.fillStyle="#8ea2b8";ctx.font="11px system-ui";ctx.fillText("surface",16,level-10);ctx.fillText(values.depth.toFixed(1)+" m depth",16,level+27);
+
+    // Lightweight current streaks that visibly travel across the river.
+    ctx.strokeStyle="rgba(125,193,255,.23)";ctx.lineWidth=1.2;
+    for(let row=0;row<6;row++){
+      const y=level+45+row*(waterBottom-level-90)/5;
+      const offset=((phase*values.flow*34)+row*80)%(w+120)-60;
+      for(let n=0;n<4;n++){
+        const x=offset+n*150;
+        ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+48,y);ctx.stroke();
+      }
+    }
+
+    // Floating body moves with the current instead of only bobbing in place.
+    const travelWidth=Math.max(160,w*.72);
+    const bodyX=w*.14+((fluidX*values.flow*70)%travelWidth);
+    const targetDepth=Math.min(.82,.2+values.depth/10*.62);
+    const bodyY=level+(waterBottom-level)*targetDepth+Math.sin(phase*2.1)*7;
+    const bodyR=26;
+    ctx.fillStyle="#d4ad63";ctx.beginPath();ctx.arc(bodyX,bodyY,bodyR,0,Math.PI*2);ctx.fill();
+
+    // Direction of flow.
+    arrow(bodyX-70,bodyY-48,bodyX-20,bodyY-48,"current");
+    arrow(bodyX,bodyY-43,bodyX,bodyY-74,"buoyancy");
+    arrow(bodyX,bodyY+6,bodyX,bodyY+46,"weight");
+
+    ctx.fillStyle="#8ea2b8";ctx.font="11px system-ui";
+    ctx.fillText("surface",16,level-10);
+    ctx.fillText(values.depth.toFixed(1)+" m depth",16,level+27);
+    ctx.fillText("river current →",Math.max(16,w*.62),waterBottom-22);
   }
   function drawOrbit(){
     const cx=w*.53,cy=h*.5,r=Math.min(w,h)*.27,ang=phase*.24;
@@ -130,9 +181,36 @@
   }
   function draw(){background();if(mode==="projectile")drawProjectile();else if(mode==="wave")drawWave();else if(mode==="rotation")drawRotation();else if(mode==="balance")drawBalance();else if(mode==="fluid")drawFluid();else drawOrbit()}
   function setRunning(v){running=v;state.textContent=v?"RUNNING":"PAUSED";play.textContent=v?"Pause":"Play";if(v){last=performance.now();if(!raf)raf=requestAnimationFrame(loop)}else{if(raf)cancelAnimationFrame(raf);raf=0;last=0;acc=0}}
-  function loop(now){raf=0;if(!running)return;const dt=Math.min(.05,(now-last)/1000);last=now;acc+=dt;while(acc>=1/60){phase+=1/60;time+=1/60;if(mode==="projectile"){const tmax=2*values.speed*Math.sin(values.angle*Math.PI/180)/values.gravity;if(time>tmax)time=0}acc-=1/60}draw();raf=requestAnimationFrame(loop)}
+  function loop(now){raf=0;if(!running)return;const dt=Math.min(.05,(now-last)/1000);last=now;acc+=dt;while(acc>=1/60){
+      phase+=1/60;
+      time+=1/60;
+
+      if(mode==="projectile"){
+        const tmax=2*values.speed*Math.sin(values.angle*Math.PI/180)/values.gravity;
+        if(time>tmax)time=0;
+      }
+
+      if(mode==="balance"){
+        const g=9.81;
+        const load=values.mass*g;
+        const netTorque=(values.effort*values.effortArm-load*values.loadArm)*Math.cos(balanceAngle);
+        const inertia=Math.max(.5,(values.mass*values.loadArm*values.loadArm+values.effort*values.effortArm*values.effortArm)*.35);
+        const angularAcceleration=netTorque/inertia;
+        balanceVelocity+=angularAcceleration*(1/60);
+        balanceVelocity*=.985;
+        balanceAngle+=balanceVelocity*(1/60);
+        if(balanceAngle>.48){balanceAngle=.48;balanceVelocity*=-.2}
+        if(balanceAngle<-.48){balanceAngle=-.48;balanceVelocity*=-.2}
+      }
+
+      if(mode==="fluid"){
+        fluidX+=1/60;
+      }
+
+      acc-=1/60;
+    }draw();raf=requestAnimationFrame(loop)}
   play.addEventListener("click",()=>setRunning(!running));
-  document.getElementById("resetBtn").addEventListener("click",()=>{setRunning(false);values={...config.defaults};phase=0;time=0;buildControls();metricsHtml();draw()});
+  document.getElementById("resetBtn").addEventListener("click",()=>{setRunning(false);values={...config.defaults};phase=0;time=0;balanceAngle=0.05;balanceVelocity=0;fluidX=0;buildControls();metricsHtml();draw()});
   document.addEventListener("visibilitychange",()=>{if(document.hidden)setRunning(false)});
   window.addEventListener("resize",resize,{passive:true});
   buildControls();metricsHtml();resize();
