@@ -4,159 +4,201 @@
 
   const PADDLE_CLIENT_SIDE_TOKEN = "live_9cc9eb9158aae539dcd93c3b9b4";
 
-  // Lightweight interactive signature starfield.
-  // Static stars render once; only a small cursor region is redrawn on movement.
+  // Lightweight responsive signature starfield.
+  // Desktop: static base + tiny cursor interaction.
+  // Touch/mobile: static base only, with reduced pixel work and fewer stars.
   const initSignatureStarfield = () => {
     if (document.querySelector(".signature-starfield-canvas")) return;
 
+    const isTouch = window.matchMedia("(pointer: coarse)").matches ||
+      navigator.maxTouchPoints > 0 ||
+      window.innerWidth <= 680;
+
     const base = document.createElement("canvas");
-    const interactive = document.createElement("canvas");
+    const interactive = isTouch ? null : document.createElement("canvas");
+
     base.className = "signature-starfield-canvas";
-    interactive.className = "signature-starfield-interactive";
     base.setAttribute("aria-hidden", "true");
-    interactive.setAttribute("aria-hidden", "true");
     document.body.prepend(base);
-    document.body.prepend(interactive);
+
+    if (interactive) {
+      interactive.className = "signature-starfield-interactive";
+      interactive.setAttribute("aria-hidden", "true");
+      document.body.prepend(interactive);
+    }
 
     const bctx = base.getContext("2d", { alpha: true });
-    const ictx = interactive.getContext("2d", { alpha: true });
-    if (!bctx || !ictx) return;
+    const ictx = interactive ? interactive.getContext("2d", { alpha: true }) : null;
+    if (!bctx || (interactive && !ictx)) return;
 
     const stars = [];
-    const seed = 48271;
-    let rand = seed;
+    let rand = 48271;
     const nextRandom = () => {
       rand = (rand * 16807) % 2147483647;
       return (rand - 1) / 2147483646;
     };
 
+    const starCount = () => {
+      if (isTouch) return window.innerWidth <= 420 ? 46 : 58;
+      return Math.min(104, Math.max(76, Math.floor(window.innerWidth / 13)));
+    };
+
     const makeStars = () => {
       stars.length = 0;
-      const count = Math.min(105, Math.max(72, Math.floor(window.innerWidth / 13)));
-      for (let i = 0; i < count; i++) {
-        const tint = i % 11 === 0 ? "gold" : i % 7 === 0 ? "teal" : "white";
+      for (let i = 0; i < starCount(); i++) {
         stars.push({
           x: nextRandom(),
           y: nextRandom(),
-          size: 0.55 + nextRandom() * 1.15,
-          alpha: 0.3 + nextRandom() * 0.55,
-          tint,
-          phase: nextRandom() * Math.PI * 2
+          size: 0.55 + nextRandom() * (isTouch ? 0.9 : 1.15),
+          alpha: 0.3 + nextRandom() * 0.5,
+          tint: i % 12 === 0 ? "gold" : i % 8 === 0 ? "teal" : "white"
         });
       }
     };
 
+    let lastWidth = 0;
+    let lastHeight = 0;
+    let resizeFrame = 0;
+
     const resize = () => {
-      // Cap DPR at 1: the starfield should never become a high-DPI rendering workload.
-      const dpr = Math.min(window.devicePixelRatio || 1, 1);
-      const w = Math.max(1, Math.floor(window.innerWidth * dpr));
-      const h = Math.max(1, Math.floor(window.innerHeight * dpr));
-      for (const canvas of [base, interactive]) {
-        canvas.width = w;
-        canvas.height = h;
-        canvas.style.width = window.innerWidth + "px";
-        canvas.style.height = window.innerHeight + "px";
-      }
+      if (resizeFrame) cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = 0;
+        const width = window.innerWidth;
+        const height = window.innerHeight;
 
-      bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ictx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      makeStars();
-      bctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        // Ignore small mobile viewport-height changes from browser UI appearing/disappearing.
+        const widthChanged = Math.abs(width - lastWidth) > 24;
+        const heightChanged = Math.abs(height - lastHeight) > 160;
+        if (lastWidth && !widthChanged && !heightChanged) return;
 
-      for (const star of stars) {
-        const x = Math.round(star.x * window.innerWidth);
-        const y = Math.round(star.y * window.innerHeight);
-        bctx.globalAlpha = star.alpha;
-        bctx.fillStyle = star.tint === "gold" ? "#d8b86f" : star.tint === "teal" ? "#78e0d4" : "#ffffff";
-        bctx.beginPath();
-        bctx.arc(x, y, star.size, 0, Math.PI * 2);
-        bctx.fill();
+        lastWidth = width;
+        lastHeight = height;
 
-        if (star.size > 1.35) {
-          bctx.globalAlpha = star.alpha * 0.38;
-          bctx.fillRect(x - 1.8, y, 3.6, 1);
-          bctx.fillRect(x, y - 1.8, 1, 3.6);
+        // Lower internal resolution on touch devices; stars are tiny so the visual cost is minimal.
+        const renderScale = isTouch ? 0.62 : Math.min(window.devicePixelRatio || 1, 1);
+        const canvasWidth = Math.max(1, Math.floor(width * renderScale));
+        const canvasHeight = Math.max(1, Math.floor(height * renderScale));
+
+        base.width = canvasWidth;
+        base.height = canvasHeight;
+        base.style.width = width + "px";
+        base.style.height = height + "px";
+        bctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+        bctx.clearRect(0, 0, width, height);
+
+        if (ictx && interactive) {
+          interactive.width = canvasWidth;
+          interactive.height = canvasHeight;
+          interactive.style.width = width + "px";
+          interactive.style.height = height + "px";
+          ictx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+          ictx.clearRect(0, 0, width, height);
         }
-      }
-      bctx.globalAlpha = 1;
-      ictx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-    };
 
-    let lastRegion = null;
-    let raf = 0;
-    const drawInteraction = (x, y) => {
-      if (raf) cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        const radius = 190;
+        makeStars();
 
-        if (lastRegion) {
-          ictx.clearRect(
-            lastRegion.x - radius - 10,
-            lastRegion.y - radius - 10,
-            radius * 2 + 20,
-            radius * 2 + 20
-          );
-        }
-        ictx.clearRect(x - radius - 10, y - radius - 10, radius * 2 + 20, radius * 2 + 20);
-
-        const nearby = [];
         for (const star of stars) {
-          const sx = star.x * window.innerWidth;
-          const sy = star.y * window.innerHeight;
-          const dx = sx - x;
-          const dy = sy - y;
-          const distance = Math.hypot(dx, dy);
-          if (distance < radius) nearby.push({star, sx, sy, dx, dy, distance});
-        }
+          const x = Math.round(star.x * width);
+          const y = Math.round(star.y * height);
+          bctx.globalAlpha = star.alpha;
+          bctx.fillStyle = star.tint === "gold"
+            ? "#d8b86f"
+            : star.tint === "teal"
+              ? "#78e0d4"
+              : "#ffffff";
 
-        for (const item of nearby) {
-          const strength = 1 - item.distance / radius;
-          const shift = strength * 7;
-          const inv = item.distance > 0 ? 1 / item.distance : 0;
-          const px = Math.round(item.sx + item.dx * inv * shift);
-          const py = Math.round(item.sy + item.dy * inv * shift);
+          if (star.size < 0.95) {
+            bctx.fillRect(x, y, 1, 1);
+          } else {
+            bctx.beginPath();
+            bctx.arc(x, y, star.size, 0, Math.PI * 2);
+            bctx.fill();
+          }
 
-          ictx.globalAlpha = 0.28 + strength * 0.65;
-          ictx.fillStyle = item.star.tint === "gold" ? "#e9cb82" : item.star.tint === "teal" ? "#9af4e8" : "#ffffff";
-          ictx.beginPath();
-          ictx.arc(px, py, item.star.size + strength * 1.45, 0, Math.PI * 2);
-          ictx.fill();
-        }
-
-        // Very small local constellation lines only near the cursor.
-        if (nearby.length > 1) {
-          ictx.lineWidth = 0.6;
-          ictx.strokeStyle = "rgba(120,224,212,.16)";
-          for (let i = 0; i < nearby.length; i++) {
-            for (let k = i + 1; k < Math.min(i + 3, nearby.length); k++) {
-              const a = nearby[i], b = nearby[k];
-              const dist = Math.hypot(a.sx - b.sx, a.sy - b.sy);
-              if (dist < 95) {
-                ictx.globalAlpha = 1;
-                ictx.beginPath();
-                ictx.moveTo(Math.round(a.sx), Math.round(a.sy));
-                ictx.lineTo(Math.round(b.sx), Math.round(b.sy));
-                ictx.stroke();
-              }
-            }
+          if (!isTouch && star.size > 1.35) {
+            bctx.globalAlpha = star.alpha * 0.34;
+            bctx.fillRect(x - 1.7, y, 3.4, 1);
+            bctx.fillRect(x, y - 1.7, 1, 3.4);
           }
         }
-
-        ictx.globalAlpha = 1;
-        lastRegion = {x, y};
+        bctx.globalAlpha = 1;
       });
     };
 
-    window.addEventListener("pointermove", (event) => drawInteraction(event.clientX, event.clientY), {passive: true});
-    window.addEventListener("pointerleave", () => {
-      if (lastRegion) {
-        const r = 200;
-        ictx.clearRect(lastRegion.x-r, lastRegion.y-r, r*2, r*2);
+    if (ictx && interactive) {
+      let lastRegion = null;
+      let pointerFrame = 0;
+      let lastPointerX = -9999;
+      let lastPointerY = -9999;
+
+      const drawInteraction = (x, y) => {
+        if (Math.abs(x - lastPointerX) < 12 && Math.abs(y - lastPointerY) < 12) return;
+        lastPointerX = x;
+        lastPointerY = y;
+
+        if (pointerFrame) cancelAnimationFrame(pointerFrame);
+        pointerFrame = requestAnimationFrame(() => {
+          pointerFrame = 0;
+          const radius = 175;
+
+          if (lastRegion) {
+            ictx.clearRect(
+              lastRegion.x - radius - 10,
+              lastRegion.y - radius - 10,
+              radius * 2 + 20,
+              radius * 2 + 20
+            );
+          }
+          ictx.clearRect(x - radius - 10, y - radius - 10, radius * 2 + 20, radius * 2 + 20);
+
+          const nearby = [];
+          for (const star of stars) {
+            const sx = star.x * window.innerWidth;
+            const sy = star.y * window.innerHeight;
+            const dx = sx - x;
+            const dy = sy - y;
+            const distance = Math.hypot(dx, dy);
+            if (distance < radius) nearby.push({ star, sx, sy, dx, dy, distance });
+          }
+
+          for (const item of nearby) {
+            const strength = 1 - item.distance / radius;
+            const shift = strength * 6;
+            const inv = item.distance > 0 ? 1 / item.distance : 0;
+            const px = Math.round(item.sx + item.dx * inv * shift);
+            const py = Math.round(item.sy + item.dy * inv * shift);
+
+            ictx.globalAlpha = 0.25 + strength * 0.6;
+            ictx.fillStyle = item.star.tint === "gold"
+              ? "#e9cb82"
+              : item.star.tint === "teal"
+                ? "#9af4e8"
+                : "#ffffff";
+            ictx.beginPath();
+            ictx.arc(px, py, item.star.size + strength * 1.25, 0, Math.PI * 2);
+            ictx.fill();
+          }
+
+          ictx.globalAlpha = 1;
+          lastRegion = { x, y };
+        });
+      };
+
+      window.addEventListener("pointermove", (event) => {
+        if (event.pointerType !== "mouse") return;
+        drawInteraction(event.clientX, event.clientY);
+      }, { passive: true });
+
+      window.addEventListener("pointerleave", () => {
+        if (!lastRegion) return;
+        const r = 185;
+        ictx.clearRect(lastRegion.x - r, lastRegion.y - r, r * 2, r * 2);
         lastRegion = null;
-      }
-    }, {passive: true});
-    window.addEventListener("resize", resize, {passive: true});
+      }, { passive: true });
+    }
+
+    window.addEventListener("resize", resize, { passive: true });
     resize();
   };
 
