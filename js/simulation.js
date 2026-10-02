@@ -93,6 +93,9 @@
 
   const bg=document.createElement("canvas");
   const bgc=bg.getContext("2d",{alpha:false});
+  const potImage=new Image();
+  potImage.src="../free-PNG-graphics-indian-food-of-makhan-butter-clay-pot-vector-illustration-th-1101533821-Photoroom.png";
+  potImage.decoding="async";
 
   const controls=document.getElementById("controlsMount");
   const metrics=document.getElementById("metrics");
@@ -687,47 +690,22 @@
     const bodyX=w*.16+wrappedX;
     const bodyY=level+fluidDepth*pixelsPerMeter;
 
-    // Krishna-style makhan matki: rounded clay body, narrow neck, butter at the rim.
     const topY=bodyY-bodyH/2;
-    const shoulderY=topY+bodyH*.24;
     const bottomY=bodyY+bodyH/2;
-    const neckR=s.radius*.58*pixelsPerMeter;
-    const bodyRFull=s.radius*pixelsPerMeter;
-    const bottomR=s.radius*.75*pixelsPerMeter;
 
-    ctx.fillStyle="#b8784f";
-    ctx.strokeStyle="rgba(245,226,192,.55)";
-    ctx.lineWidth=2;
-    ctx.beginPath();
-    ctx.moveTo(bodyX-neckR,topY);
-    ctx.quadraticCurveTo(bodyX-bodyRFull,shoulderY,bodyX-bottomR,bottomY-bodyH*.15);
-    ctx.quadraticCurveTo(bodyX-bottomR*.65,bottomY,bodyX,bottomY);
-    ctx.quadraticCurveTo(bodyX+bottomR*.65,bottomY,bodyX+bottomR,bottomY-bodyH*.15);
-    ctx.quadraticCurveTo(bodyX+bodyRFull,shoulderY,bodyX+neckR,topY);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.strokeStyle="rgba(212,173,99,.9)";
-    ctx.lineWidth=4;
-    ctx.beginPath();
-    ctx.moveTo(bodyX-bodyR*.72,topY+bodyH*.37);
-    ctx.quadraticCurveTo(bodyX,topY+bodyH*.47,bodyX+bodyR*.72,topY+bodyH*.37);
-    ctx.stroke();
-
-    ctx.fillStyle="#25a8a0";
-    ctx.fillRect(bodyX-bodyR*.48,topY+bodyH*.56,bodyR*.96,bodyH*.08);
-
-    ctx.fillStyle="#f3efe3";
-    for(let i=-2;i<=2;i++){
-      const bx=bodyX+i*bodyR*.20;
-      const by=topY+bodyH*.03-Math.abs(i)*2;
+    // Use the uploaded makhan-pot artwork as the actual simulation object.
+    if(potImage.complete && potImage.naturalWidth>0){
+      const imageRatio=potImage.naturalWidth/Math.max(1,potImage.naturalHeight);
+      const imageW=bodyH*imageRatio;
+      ctx.drawImage(potImage,bodyX-imageW/2,topY,imageW,bodyH);
+    }else{
+      ctx.fillStyle="#b8784f";
       ctx.beginPath();
-      ctx.arc(bx,by,bodyR*.17,0,TAU);
+      ctx.ellipse(bodyX,bodyY,bodyR,bodyH/2,0,0,TAU);
       ctx.fill();
     }
 
-    // Waterline crosses the actual pot body and visually shows submersion.
+    // Waterline overlays only the submerged portion.
     ctx.save();
     ctx.beginPath();
     ctx.rect(0,level,w,waterBottom-level);
@@ -869,11 +847,11 @@
 
     if(fluidDepth<topLimit){
       fluidDepth=topLimit;
-      fluidVelocity=Math.abs(fluidVelocity)*.12;
+      if(fluidVelocity<0) fluidVelocity=0;
     }
     if(fluidDepth>bottomLimit){
       fluidDepth=bottomLimit;
-      fluidVelocity=-Math.abs(fluidVelocity)*.12;
+      if(fluidVelocity>0) fluidVelocity=0;
     }
 
     const Cd=.85;
