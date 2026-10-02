@@ -518,7 +518,7 @@
     const cy=h*.5;
     const r=clamp(Math.min(w,h)*.07*values.radius,35,Math.min(w,h)*.3);
     const angle=rotationAngle;
-    const baseTilt=-Math.PI/7; // Match the earlier slanted static presentation.
+    const baseTilt=-Math.PI/4; // Exact 45° slant, matching the requested presentation.
 
     ctx.save();
     ctx.translate(cx,cy);
