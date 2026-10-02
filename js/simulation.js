@@ -56,7 +56,7 @@
     fluid:{
       title:"Yamuna Pressure",
       formula:"Fᵦ = ρgVₛᵤᵦ",
-      note:"A spherical body moves under gravity and buoyancy. Volume stays fixed; depth changes position and submerged volume, while flow creates horizontal drag.",
+      note:"A solid makhan pot moves under gravity and buoyancy. Pot volume stays fixed; depth changes position and the submerged part of that same pot determines buoyant force.",
       defaults:{depth:4,density:1000,volume:.08,mass:100,flow:1.4},
       controls:[
         ["depth","Object depth",.2,9,.1,"m"],
@@ -156,18 +156,42 @@
     orbitTrail.push([orbitX,orbitY]);
   }
 
+  function frustumVolume(r1,r2,height){
+    return Math.PI*height*(r1*r1+r1*r2+r2*r2)/3;
+  }
+
+  function frustumPartialVolume(r1,r2,height,subHeight){
+    if(subHeight<=0) return 0;
+    if(subHeight>=height) return frustumVolume(r1,r2,height);
+    const t=subHeight/height;
+    const rAtCut=r1+(r2-r1)*t;
+    return frustumVolume(r1,rAtCut,subHeight);
+  }
+
   function potGeometry(volume){
-    const radius=Math.cbrt(volume/(2.4*Math.PI));
+    // The rendered pot is represented as two matching frustum sections.
+    // Its external volume is solved so the volume slider remains physically meaningful.
+    const shapeFactor=1.69156*Math.PI;
+    const radius=Math.cbrt(volume/shapeFactor);
     const height=2.4*radius;
-    return {radius,height};
+    const midRadius=radius;
+    const topRadius=radius*.58;
+    const bottomRadius=radius*.75;
+    return {radius,height,topRadius,midRadius,bottomRadius};
   }
 
   function potSubmergedVolume(geom,centerDepth){
     const topDepth=centerDepth-geom.height/2;
-    const bottomDepth=centerDepth+geom.height/2;
-    const submergedHeight=clamp(bottomDepth,0,geom.height)-clamp(topDepth,0,geom.height);
-    if(submergedHeight<=0) return 0;
-    return Math.PI*geom.radius*geom.radius*submergedHeight;
+    const submergedFromTop=clamp(-topDepth,0,geom.height);
+    if(submergedFromTop<=0) return 0;
+
+    const half=geom.height/2;
+    if(submergedFromTop<=half){
+      return frustumPartialVolume(geom.topRadius,geom.midRadius,half,submergedFromTop);
+    }
+
+    return frustumVolume(geom.topRadius,geom.midRadius,half)+
+      frustumPartialVolume(geom.midRadius,geom.bottomRadius,half,submergedFromTop-half);
   }
 
   function fluidState(){
@@ -667,17 +691,18 @@
     const topY=bodyY-bodyH/2;
     const shoulderY=topY+bodyH*.24;
     const bottomY=bodyY+bodyH/2;
-    const neckR=bodyR*.58;
-    const bodyRFull=bodyR;
+    const neckR=s.radius*.58*pixelsPerMeter;
+    const bodyRFull=s.radius*pixelsPerMeter;
+    const bottomR=s.radius*.75*pixelsPerMeter;
 
     ctx.fillStyle="#b8784f";
     ctx.strokeStyle="rgba(245,226,192,.55)";
     ctx.lineWidth=2;
     ctx.beginPath();
     ctx.moveTo(bodyX-neckR,topY);
-    ctx.quadraticCurveTo(bodyX-bodyRFull,shoulderY,bodyX-bodyRFull*.92,bottomY-bodyH*.15);
-    ctx.quadraticCurveTo(bodyX-bodyRFull*.82,bottomY,bodyX,bottomY);
-    ctx.quadraticCurveTo(bodyX+bodyRFull*.82,bottomY,bodyX+bodyRFull*.92,bottomY-bodyH*.15);
+    ctx.quadraticCurveTo(bodyX-bodyRFull,shoulderY,bodyX-bottomR,bottomY-bodyH*.15);
+    ctx.quadraticCurveTo(bodyX-bottomR*.65,bottomY,bodyX,bottomY);
+    ctx.quadraticCurveTo(bodyX+bottomR*.65,bottomY,bodyX+bottomR,bottomY-bodyH*.15);
     ctx.quadraticCurveTo(bodyX+bodyRFull,shoulderY,bodyX+neckR,topY);
     ctx.closePath();
     ctx.fill();
