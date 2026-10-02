@@ -31,7 +31,19 @@
     });
   };
 
-  const navButtons = document.querySelectorAll("[data-kanha-donate]");
+  let navButtons = document.querySelectorAll("[data-kanha-donate]");
+  if (!navButtons.length) {
+    document.querySelectorAll(".nav-actions").forEach((nav) => {
+      if (nav.querySelector("[data-kanha-donate]")) return;
+      const button = document.createElement("button");
+      button.className = "nav-btn donate-btn";
+      button.type = "button";
+      button.dataset.kanhaDonate = "true";
+      button.textContent = "Donate";
+      nav.appendChild(button);
+    });
+    navButtons = document.querySelectorAll("[data-kanha-donate]");
+  }
   if (!navButtons.length) return;
 
   const modal = document.createElement("div");
