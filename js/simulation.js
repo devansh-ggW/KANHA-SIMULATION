@@ -76,6 +76,67 @@
         ["mass","Central mass",.2,3,.1,"M☉"],
         ["velocity","Initial speed",5,50,.1,"km/s"]
       ]
+    },
+    pendulum:{
+      title:"Kanha Pendulum",
+      formula:"θ¨ = −(g/L) sinθ",
+      note:"A simple pendulum with gravity-driven angular motion. Change length, mass, angle and gravity and compare the period.",
+      defaults:{length:2,mass:1,angle:35,gravity:9.81},
+      controls:[
+        ["length","String length",.5,4,.1,"m"],
+        ["mass","Bob mass",.2,10,.1,"kg"],
+        ["angle","Release angle",5,70,1,"°"],
+        ["gravity","Gravity",1,20,.01,"m/s²"]
+      ]
+    },
+    spring:{
+      title:"Radha's Spring",
+      formula:"F = −kx,   a = −kx/m",
+      note:"A mass-spring oscillator. Stiffness, mass and starting displacement control the natural oscillation.",
+      defaults:{mass:1,stiffness:18,displacement:.6,damping:.05},
+      controls:[
+        ["mass","Mass",.2,5,.1,"kg"],
+        ["stiffness","Spring stiffness",5,40,1,"N/m"],
+        ["displacement","Release stretch",.1,1.2,.05,"m"],
+        ["damping","Damping",0,.8,.01,"N·s/m"]
+      ]
+    },
+    friction:{
+      title:"Gokul Friction Track",
+      formula:"f ≤ μₛN,   fₖ = μₖN",
+      note:"A block on a level track. Applied force must overcome static friction before the block accelerates; kinetic friction acts while it moves.",
+      defaults:{mass:5,force:18,staticMu:.55,kineticMu:.4},
+      controls:[
+        ["mass","Block mass",1,20,.5,"kg"],
+        ["force","Applied force",0,100,1,"N"],
+        ["staticMu","Static friction μₛ",.1,1,.01,""],
+        ["kineticMu","Kinetic friction μₖ",.05,.9,.01,""]
+      ]
+    },
+    incline:{
+      title:"Govardhan Inclined Plane",
+      formula:"a = (F − mg sinθ − μmg cosθ)/m",
+      note:"A block moves along an inclined plane under gravity, friction and an adjustable applied force.",
+      defaults:{mass:5,angle:25,force:35,mu:.2},
+      controls:[
+        ["mass","Block mass",1,20,.5,"kg"],
+        ["angle","Incline angle",5,50,1,"°"],
+        ["force","Applied force",0,120,1,"N"],
+        ["mu","Friction μ",0,.8,.01,""]
+      ]
+    },
+    collision:{
+      title:"Krishna's Collision Lab",
+      formula:"p = mv,   KE = ½mv²",
+      note:"A one-dimensional collision model. Adjust both masses, incoming velocities and elasticity, then observe momentum and energy transfer.",
+      defaults:{mass1:2,mass2:3,velocity1:6,velocity2:-2,restitution:1},
+      controls:[
+        ["mass1","Cart A mass",.5,10,.5,"kg"],
+        ["mass2","Cart B mass",.5,10,.5,"kg"],
+        ["velocity1","Cart A speed",-10,10,.5,"m/s"],
+        ["velocity2","Cart B speed",-10,10,.5,"m/s"],
+        ["restitution","Elasticity",0,1,.05,"e"]
+      ]
     }
   }[mode];
 
@@ -90,6 +151,11 @@
   let balanceAngle=.05,balanceVelocity=0;
   let fluidDepth=config.defaults.depth,fluidVelocity=0,fluidX=0,fluidVelocityX=0;
   let orbitX=config.defaults.radius,orbitY=0,orbitVX=0,orbitVY=0,orbitTrail=[];
+  let pendulumAngle=0,pendulumOmega=0;
+  let springX=0,springV=0;
+  let frictionX=0,frictionV=0;
+  let inclineX=0,inclineV=0;
+  let collisionX1=-2,collisionX2=2,collisionV1=0,collisionV2=0,collisionDone=false;
 
   const bg=document.createElement("canvas");
   const bgc=bg.getContext("2d",{alpha:false});
@@ -164,6 +230,34 @@
     orbitVY=kmpsToAuPerYear(values.velocity);
     orbitTrail=[];
     orbitTrail.push([orbitX,orbitY]);
+  }
+
+  function resetPendulum(){
+    pendulumAngle=values.angle*Math.PI/180;
+    pendulumOmega=0;
+  }
+
+  function resetSpring(){
+    springX=values.displacement;
+    springV=0;
+  }
+
+  function resetFriction(){
+    frictionX=-2;
+    frictionV=0;
+  }
+
+  function resetIncline(){
+    inclineX=0;
+    inclineV=0;
+  }
+
+  function resetCollision(){
+    collisionX1=-2;
+    collisionX2=2;
+    collisionV1=values.velocity1;
+    collisionV2=values.velocity2;
+    collisionDone=false;
   }
 
   function frustumVolume(r1,r2,height){
@@ -308,6 +402,54 @@
         ["State",s.status],
         ["River flow",values.flow.toFixed(1)+" m/s"]
       );
+    }else if(mode==="pendulum"){
+      const period=2*Math.PI*Math.sqrt(values.length/values.gravity);
+      m.push(
+        ["Angle", (pendulumAngle*180/Math.PI).toFixed(1)+" °"],
+        ["Angular speed",pendulumOmega.toFixed(2)+" rad/s"],
+        ["Period",period.toFixed(2)+" s"],
+        ["Bob speed",(Math.abs(pendulumOmega)*values.length).toFixed(2)+" m/s"]
+      );
+    }else if(mode==="spring"){
+      const omega=Math.sqrt(values.stiffness/values.mass);
+      const period=2*Math.PI/omega;
+      m.push(
+        ["Displacement",springX.toFixed(2)+" m"],
+        ["Speed",Math.abs(springV).toFixed(2)+" m/s"],
+        ["Natural frequency",omega.toFixed(2)+" rad/s"],
+        ["Period",period.toFixed(2)+" s"]
+      );
+    }else if(mode==="friction"){
+      const n=values.mass*G;
+      const fsMax=values.staticMu*n;
+      const fk=values.kineticMu*n;
+      const moving=Math.abs(frictionV)>.01;
+      m.push(
+        ["Applied force",values.force.toFixed(1)+" N"],
+        ["Static limit",fsMax.toFixed(1)+" N"],
+        ["Kinetic friction",fk.toFixed(1)+" N"],
+        ["Acceleration",frictionAcceleration().toFixed(2)+" m/s²"],
+        ["State",moving?"Sliding":"At rest"]
+      );
+    }else if(mode==="incline"){
+      const a=inclineAcceleration();
+      m.push(
+        ["Position",inclineX.toFixed(2)+" m"],
+        ["Speed",Math.abs(inclineV).toFixed(2)+" m/s"],
+        ["Acceleration",a.toFixed(2)+" m/s²"],
+        ["Grade",values.angle.toFixed(0)+" °"],
+        ["Friction",values.mu.toFixed(2)]
+      );
+    }else if(mode==="collision"){
+      const totalP=values.mass1*collisionV1+values.mass2*collisionV2;
+      const totalKE=.5*values.mass1*collisionV1*collisionV1+.5*values.mass2*collisionV2*collisionV2;
+      m.push(
+        ["Cart A speed",collisionV1.toFixed(2)+" m/s"],
+        ["Cart B speed",collisionV2.toFixed(2)+" m/s"],
+        ["Total momentum",totalP.toFixed(2)+" kg·m/s"],
+        ["Total kinetic energy",totalKE.toFixed(2)+" J"],
+        ["Elasticity",values.restitution.toFixed(2)]
+      );
     }else{
       const o=orbitState();
       const ratio=o.speed/Math.max(.001,values.radius);
@@ -348,6 +490,11 @@
         if(mode==="rotation" && (key==="radius"||key==="omega")) resetRotation();
         if(mode==="balance" && (key==="mass"||key==="loadArm"||key==="effortArm"||key==="beamMass")) resetBalance();
         if(mode==="orbit" && (key==="radius"||key==="mass"||key==="velocity")) resetOrbit();
+        if(mode==="pendulum") resetPendulum();
+        if(mode==="spring") resetSpring();
+        if(mode==="friction") resetFriction();
+        if(mode==="incline") resetIncline();
+        if(mode==="collision") resetCollision();
 
         out.textContent=input.value+" "+unit;
         metricsHtml();
@@ -429,6 +576,103 @@
       ctx.font="10px system-ui";
       ctx.fillText(label,(x+tx)/2+6,(y+ty)/2);
     }
+  }
+
+  function frictionAcceleration(){
+    const n=values.mass*G;
+    const fsMax=values.staticMu*n;
+    if(Math.abs(frictionV)<.01 && Math.abs(values.force)<=fsMax) return 0;
+    const kinetic=values.kineticMu*n;
+    const direction=frictionV!==0?Math.sign(frictionV):Math.sign(values.force);
+    return (values.force-direction*kinetic)/values.mass;
+  }
+
+  function inclineAcceleration(){
+    const angle=values.angle*Math.PI/180;
+    return (values.force-values.mass*G*Math.sin(angle)-values.mu*values.mass*G*Math.cos(angle))/values.mass;
+  }
+
+  function drawPendulum(){
+    const cx=w*.52,top=h*.18;
+    const pxPerM=Math.min((h*.58)/Math.max(.5,values.length),105);
+    const bobR=clamp(12+values.mass*1.2,12,25);
+    const x=cx+Math.sin(pendulumAngle)*values.length*pxPerM;
+    const y=top+Math.cos(pendulumAngle)*values.length*pxPerM;
+    ctx.strokeStyle="rgba(240,246,255,.22)";
+    ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(cx,top);ctx.lineTo(x,y);ctx.stroke();
+    ctx.fillStyle="#d4ad63";ctx.beginPath();ctx.arc(cx,top,7,0,TAU);ctx.fill();
+    ctx.fillStyle="#43b5ff";ctx.beginPath();ctx.arc(x,y,bobR,0,TAU);ctx.fill();
+    arrow(x,y,x+pendulumOmega*18,y+(-G*Math.sin(pendulumAngle))*8,"motion");
+    ctx.fillStyle="#8ea2b8";ctx.font="11px system-ui";
+    ctx.fillText("L = "+values.length.toFixed(1)+" m",cx+10,top+24);
+  }
+
+  function drawSpring(){
+    const cx=100,cy=h*.5;
+    const pixelsPerMeter=Math.min(120,(w-190)/2.5);
+    const anchorX=70;
+    const massX=anchorX+(1.05+springX)*pixelsPerMeter;
+    ctx.strokeStyle="#8ea2b8";ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(anchorX,cy-50);ctx.lineTo(anchorX,cy+50);ctx.stroke();
+    ctx.strokeStyle="#55c1ba";ctx.lineWidth=3;ctx.beginPath();
+    const turns=14,coilStart=anchorX+12,coilEnd=massX-18;
+    for(let i=0;i<=turns*4;i++){
+      const t=i/(turns*4),xx=coilStart+(coilEnd-coilStart)*t;
+      const yy=cy+Math.sin(t*TAU*turns)*14;
+      i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy);
+    }
+    ctx.stroke();
+    ctx.fillStyle="#d4ad63";ctx.fillRect(massX-22,cy-22,44,44);
+    arrow(massX,cy,massX+springV*12,cy,"v");
+    ctx.fillStyle="#8ea2b8";ctx.font="11px system-ui";
+    ctx.fillText("x = "+springX.toFixed(2)+" m",massX-25,cy+42);
+  }
+
+  function drawFriction(){
+    const ground=h*.68;
+    const scale=Math.min((w-120)/10,70);
+    const x=w*.5+frictionX*scale;
+    ctx.strokeStyle="rgba(240,246,255,.2)";ctx.beginPath();ctx.moveTo(45,ground);ctx.lineTo(w-35,ground);ctx.stroke();
+    ctx.fillStyle="#43b5ff";ctx.fillRect(x-30,ground-48,60,48);
+    if(Math.abs(values.force)>0) arrow(x,ground-70,x+values.force*1.1,ground-70,"applied");
+    const opposing=frictionAcceleration()*values.mass-values.force;
+    if(Math.abs(opposing)>0.1) arrow(x,ground-25,x+Math.sign(opposing)*Math.min(80,Math.abs(opposing)*2),ground-25,"friction");
+    ctx.fillStyle="#8ea2b8";ctx.font="11px system-ui";ctx.fillText("level track",50,ground+24);
+  }
+
+  function drawIncline(){
+    const angle=values.angle*Math.PI/180;
+    const baseX=80,baseY=h*.78,length=Math.min(w*.72,520);
+    const rise=Math.sin(angle)*length,run=Math.cos(angle)*length;
+    ctx.strokeStyle="rgba(240,246,255,.2)";ctx.lineWidth=8;ctx.beginPath();ctx.moveTo(baseX,baseY);ctx.lineTo(baseX+run,baseY-rise);ctx.stroke();
+    const pxPerM=length/Math.max(5,6);
+    const x=baseX+inclineX*pxPerM*Math.cos(angle);
+    const y=baseY-inclineX*pxPerM*Math.sin(angle);
+    ctx.save();ctx.translate(x,y);ctx.rotate(-angle);ctx.fillStyle="#d4ad63";ctx.fillRect(-24,-24,48,48);ctx.restore();
+    arrow(x,y,x+Math.cos(angle)*35,y-Math.sin(angle)*35,"motion");
+    arrow(x,y,x,y+45,"weight");
+    if(values.force>0) arrow(x,y,x+Math.cos(angle)*Math.min(90,20+values.force),y-Math.sin(angle)*Math.min(90,20+values.force),"applied");
+    ctx.fillStyle="#8ea2b8";ctx.font="11px system-ui";ctx.fillText(values.angle.toFixed(0)+"° incline",baseX,baseY+30);
+  }
+
+  function resolveCollision(){
+    const m1=values.mass1,m2=values.mass2,e=values.restitution;
+    const u1=collisionV1,u2=collisionV2;
+    const v1=((m1-e*m2)*u1+(1+e)*m2*u2)/(m1+m2);
+    const v2=((m2-e*m1)*u2+(1+e)*m1*u1)/(m1+m2);
+    collisionV1=v1;collisionV2=v2;collisionDone=true;
+  }
+
+  function drawCollision(){
+    const ground=h*.72,scale=Math.min((w-160)/9,65);
+    const x1=w*.5+collisionX1*scale,x2=w*.5+collisionX2*scale;
+    ctx.strokeStyle="rgba(240,246,255,.2)";ctx.beginPath();ctx.moveTo(45,ground);ctx.lineTo(w-35,ground);ctx.stroke();
+    ctx.fillStyle="#43b5ff";ctx.fillRect(x1-28,ground-38,56,38);
+    ctx.fillStyle="#25b8ad";ctx.fillRect(x2-28,ground-38,56,38);
+    arrow(x1,ground-58,x1+collisionV1*12,ground-58,"A");
+    arrow(x2,ground-80,x2+collisionV2*12,ground-80,"B");
+    ctx.fillStyle="#8ea2b8";ctx.font="11px system-ui";ctx.fillText(collisionDone?"COLLISION COMPLETE":"MOVE TO COLLIDE",w*.5-45,ground+24);
   }
 
   function drawProjectile(){
@@ -783,6 +1027,11 @@
     else if(mode==="rotation") drawRotation();
     else if(mode==="balance") drawBalance();
     else if(mode==="fluid") drawFluid();
+    else if(mode==="pendulum") drawPendulum();
+    else if(mode==="spring") drawSpring();
+    else if(mode==="friction") drawFriction();
+    else if(mode==="incline") drawIncline();
+    else if(mode==="collision") drawCollision();
     else drawOrbit();
   }
 
@@ -865,6 +1114,54 @@
     rotationAngle=(rotationAngle+values.omega*dt)%TAU;
   }
 
+  function stepPendulum(dt){
+    const angularAcceleration=-(values.gravity/values.length)*Math.sin(pendulumAngle);
+    pendulumOmega+=angularAcceleration*dt;
+    pendulumOmega*=Math.pow(.999,dt*60);
+    pendulumAngle+=pendulumOmega*dt;
+    if(Math.abs(pendulumAngle)>Math.PI*2) pendulumAngle%=TAU;
+  }
+
+  function stepSpring(dt){
+    const acceleration=-(values.stiffness*springX+values.damping*springV)/Math.max(.1,values.mass);
+    springV+=acceleration*dt;
+    springX+=springV*dt;
+  }
+
+  function stepFriction(dt){
+    const a=frictionAcceleration();
+    if(Math.abs(frictionV)<.01 && Math.abs(values.force)<=values.staticMu*values.mass*G){
+      frictionV=0;
+    }else{
+      frictionV+=a*dt;
+      if(Math.abs(values.force)<values.kineticMu*values.mass*G && Math.sign(frictionV)===Math.sign(values.force)){
+        frictionV=0;
+      }
+    }
+    frictionX+=frictionV*dt;
+    if(Math.abs(frictionX)>5){frictionX=Math.sign(frictionX)*5;frictionV=0}
+  }
+
+  function stepIncline(dt){
+    const a=inclineAcceleration();
+    inclineV+=a*dt;
+    inclineX+=inclineV*dt;
+    if(inclineX<0){inclineX=0;if(inclineV<0)inclineV=0}
+    if(inclineX>6){inclineX=6;if(inclineV>0)inclineV=0}
+  }
+
+  function stepCollision(dt){
+    collisionX1+=collisionV1*dt;
+    collisionX2+=collisionV2*dt;
+    if(!collisionDone && Math.abs(collisionX1-collisionX2)<1.0){
+      const rel=collisionV1-collisionV2;
+      if(rel>0) resolveCollision();
+    }
+    if(Math.abs(collisionX1)>6||Math.abs(collisionX2)>6){
+      resetCollision();
+    }
+  }
+
   function stepOrbit(dt){
     const substeps=4;
     const subDt=dt/substeps;
@@ -907,6 +1204,11 @@
       else if(mode==="balance") stepBalance(fixedDt);
       else if(mode==="fluid") stepFluid(fixedDt);
       else if(mode==="rotation") stepRotation(fixedDt);
+      else if(mode==="pendulum") stepPendulum(fixedDt);
+      else if(mode==="spring") stepSpring(fixedDt);
+      else if(mode==="friction") stepFriction(fixedDt);
+      else if(mode==="incline") stepIncline(fixedDt);
+      else if(mode==="collision") stepCollision(fixedDt);
       else if(mode==="orbit") stepOrbit(fixedDt);
 
       acc-=fixedDt;
@@ -928,6 +1230,11 @@
     resetBalance();
     resetFluid();
     resetOrbit();
+    resetPendulum();
+    resetSpring();
+    resetFriction();
+    resetIncline();
+    resetCollision();
     buildControls();
     metricsHtml();
     draw();
@@ -944,6 +1251,11 @@
   resetBalance();
   resetFluid();
   resetOrbit();
+  resetPendulum();
+  resetSpring();
+  resetFriction();
+  resetIncline();
+  resetCollision();
   buildControls();
   metricsHtml();
   resize();
